@@ -341,7 +341,12 @@ LINUX_FIRMWARE_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/linu
 EOF
 
 pushd "${OUTPUT_ROOT}" >/dev/null
-find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%P\0' | \
-  sort -z | xargs -0 sha256sum > SHA256SUMS
+checksum_tmp=$(mktemp "${OUTPUT_ROOT}/.SHA256SUMS.XXXXXX")
+trap 'rm -f -- "${checksum_tmp}"' EXIT
+find . -maxdepth 1 -type f ! -name SHA256SUMS \
+  ! -name '.SHA256SUMS.*' -printf '%P\0' | \
+  sort -z | xargs -0 sha256sum > "${checksum_tmp}"
+mv "${checksum_tmp}" SHA256SUMS
+trap - EXIT
 popd >/dev/null
 echo "finalized artifacts in ${OUTPUT_ROOT}"

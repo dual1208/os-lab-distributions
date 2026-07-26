@@ -71,7 +71,8 @@ if [[ ! -f ${LINUX_ARCHIVE} ]]; then
     "https://www.kernel.org/pub/linux/kernel/v7.x/linux-${LINUX_VERSION}.tar.xz"
 fi
 
-readonly KERNEL_WORK=$(mktemp -d /tmp/oslab-kernel-config.XXXXXX)
+readonly KERNEL_WORK
+KERNEL_WORK=$(mktemp -d /tmp/oslab-kernel-config.XXXXXX)
 trap 'rm -rf -- "${KERNEL_WORK}"' EXIT
 tar -xf "${LINUX_ARCHIVE}" -C "${KERNEL_WORK}"
 cp "/boot/config-$(uname -r)" "${KERNEL_WORK}/linux-${LINUX_VERSION}/.config"
@@ -182,7 +183,8 @@ sudo -u "${BUILD_USER}" bash -lc \
   "cd '${JHALFS_ROOT}' && printf 'yes\\nyes\\n' | ./jhalfs run"
 
 test -f "${BUILD_ROOT}/jhalfs/Makefile"
-sudo -u "${BUILD_USER}" git -C "${JHALFS_ROOT}" rev-parse HEAD \
-  > "${TOOLING_ROOT}/jhalfs.commit"
+sudo -u "${BUILD_USER}" git -C "${JHALFS_ROOT}" rev-parse HEAD | \
+  install -o "${BUILD_USER}" -g "${BUILD_USER}" -m 0644 /dev/stdin \
+    "${TOOLING_ROOT}/jhalfs.commit"
 printf '%s\n' "${LFS_BOOK_COMMIT}" > "${TOOLING_ROOT}/lfs-book.commit"
 echo "jhalfs build files are ready at ${BUILD_ROOT}/jhalfs"
