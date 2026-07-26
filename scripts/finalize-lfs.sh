@@ -268,6 +268,8 @@ for option in \
     exit 4
   fi
 done
+install -D -m 0644 "${TOOLING_ROOT}/INSTALL.md" \
+  "${BUILD_ROOT}/usr/share/doc/oslab/INSTALL.md"
 
 for profile in zen5 skylake; do
   case ${profile} in
