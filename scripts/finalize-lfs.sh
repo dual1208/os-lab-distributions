@@ -310,6 +310,7 @@ fi
 cp "${BUILD_ROOT}/boot/initramfs-7.1.5-oslab.img" "${OUTPUT_ROOT}/"
 cp "${BUILD_ROOT}/sources/oslab-extra/SOURCE-SHA256SUMS" "${OUTPUT_ROOT}/"
 cp "${TOOLING_ROOT}/LFS-SOURCE-SHA256SUMS" "${OUTPUT_ROOT}/"
+cp "${TOOLING_ROOT}/UPSTREAMS.tsv" "${OUTPUT_ROOT}/"
 
 cat > "${OUTPUT_ROOT}/BUILD-MANIFEST.txt" <<EOF
 LFS_STABLE_REFERENCE=13.0-systemd
