@@ -67,6 +67,10 @@ an old layout, follow the current supported owrt-ubi-installer instructions and
 back up the vendor bootchain first. Existing current-layout OpenWrt users should
 use the UBI sysupgrade image after verifying its SHA-256.
 
+Any preloader `.bin` or bootloader `.fip` assets are retained as build and
+recovery provenance only. Do not write them to flash unless the current
+official E8450 recovery procedure explicitly requires that exact component.
+
 No script in this release flashes the router automatically.
 EOF
 
