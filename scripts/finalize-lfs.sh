@@ -257,6 +257,18 @@ chroot "${BUILD_ROOT}" /usr/bin/env -i \
   HOME=/root TERM=xterm PATH=/usr/bin:/usr/sbin \
   /bin/bash --login /sources/oslab-extra/install.sh
 
+for option in \
+  CONFIG_EFI CONFIG_EFI_STUB CONFIG_BLK_DEV_NVME CONFIG_SATA_AHCI \
+  CONFIG_EXT4_FS CONFIG_VFAT_FS CONFIG_VIRTIO_PCI CONFIG_VIRTIO_BLK \
+  CONFIG_DRM_AMDGPU CONFIG_DRM_NOUVEAU CONFIG_DRM_I915 CONFIG_E1000E \
+  CONFIG_R8169 CONFIG_IWLWIFI CONFIG_SND_HDA_INTEL; do
+  if ! grep -Eq "^${option}=(y|m)$" \
+    "${BUILD_ROOT}/boot/config-7.1.5-oslab"; then
+    echo "required kernel option is missing: ${option}" >&2
+    exit 4
+  fi
+done
+
 for profile in zen5 skylake; do
   case ${profile} in
     zen5) tune=znver5 ;;

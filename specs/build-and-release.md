@@ -37,6 +37,9 @@ temporary paid builder when publishing and verification are complete.
    system. Package-manager metadata and exact source revisions must be present
    in each artifact. CPU tuning may apply to userland packages, but the kernel,
    bootloader, and recovery path must remain compatible with the named machine.
+   The shared kernel configuration must retain EFI, NVMe, AHCI, ext4, VFAT,
+   VirtIO, AMDGPU, Nouveau, Intel i915, common wired and wireless adapters, and
+   HDA audio so either profile remains a recoverable cross-machine bootstrap.
 5. Retain local copies of the stable LFS/BLFS books and relevant GNU, Linux,
    systemd, and package-manager manuals. Record source URLs and SHA-256 hashes.
 6. Publish custom OpenWrt firmware as a release on `dual1208/openwrt` and the
@@ -82,6 +85,8 @@ temporary paid builder when publishing and verification are complete.
   pinned LFS development recipe commit, all source versions and hashes,
   compiler flags, kernel configuration, package database, and the two hardware
   profiles.
+- The released kernel configuration is checked for the required storage,
+  filesystem, display, network, sound, and virtual-machine bootstrap drivers.
 - Each variant contains Linux, glibc, systemd, Bash, coreutils, util-linux,
   shadow, GCC runtime support, networking essentials, initramfs tooling, and
   pacman with a valid local package database.

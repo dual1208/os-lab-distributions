@@ -86,12 +86,24 @@ scripts/config --enable EFI_STUB
 scripts/config --enable BLK_DEV_NVME
 scripts/config --enable SATA_AHCI
 scripts/config --enable EXT4_FS
+scripts/config --enable VFAT_FS
 scripts/config --enable VIRTIO
 scripts/config --enable VIRTIO_PCI
 scripts/config --enable VIRTIO_BLK
 scripts/config --enable DRM_AMDGPU
 scripts/config --enable DRM_NOUVEAU
 scripts/config --enable DRM_I915
+scripts/config --module DRM_ACCEL_AMDXDNA
+scripts/config --module E1000E
+scripts/config --module R8169
+scripts/config --module IWLWIFI
+scripts/config --module IWLMVM
+scripts/config --module MT7921E
+scripts/config --module RTW88
+scripts/config --module RTW89
+scripts/config --module ATH10K
+scripts/config --module ATH11K
+scripts/config --module SND_HDA_INTEL
 make olddefconfig </dev/null
 cp .config "${TOOLING_ROOT}/kernel-7.1.3-bootstrap.config"
 popd >/dev/null
