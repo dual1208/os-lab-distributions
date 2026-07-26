@@ -23,6 +23,8 @@ The manual PC handoff boundary is documented in [`INSTALL.md`](INSTALL.md).
 - `scripts/finalize-lfs.sh` updates the base to Linux 7.1.5 and systemd 261.2,
   adds linux-firmware, dracut, and pacman, then creates sanitized Zen 5 and
   Skylake-class hardware-profile root filesystem archives.
+- `scripts/run-lfs-finalize.sh` runs that final layer as a detached-job-friendly
+  logged operation with a durable exit marker.
 - `UPSTREAMS.tsv` maps every preserved fork and build input to its canonical
   upstream, immutable release reference, and source commit.
 - `reference/` contains offline documentation kept out of Git; its source and
