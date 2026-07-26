@@ -1,0 +1,17 @@
+# Credentials and private machine inventories
+do_model_access_keys
+github_token
+personal_computer*_info.txt
+router_info
+
+# Retrieved reference payloads stay local; only their manifest is versioned.
+reference/**
+!reference/README.md
+!reference/MANIFEST.sha256
+!reference/SOURCES.tsv
+
+# Generated build and release payloads
+out/
+*.log
+*.exit
+

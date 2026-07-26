@@ -1,0 +1,25 @@
+path	source	retrieved_on	notes
+blfs/blfs-book-13.0-systemd-html.tar.xz	https://www.linuxfromscratch.org/blfs/downloads/stable-systemd/blfs-book-13.0-systemd-html.tar.xz	2026-07-26	BLFS 13.0 systemd split HTML
+blfs/BLFS-BOOK-13.0-systemd-nochunks.html.xz	https://www.linuxfromscratch.org/blfs/downloads/stable-systemd/BLFS-BOOK-13.0-systemd-nochunks.html.xz	2026-07-26	BLFS 13.0 systemd single-page HTML
+blfs/wget-list	https://www.linuxfromscratch.org/blfs/downloads/stable-systemd/wget-list	2026-07-26	BLFS 13.0 source list
+gnu/bash.html	https://www.gnu.org/software/bash/manual/bash.html	2026-07-26	GNU Bash manual
+gnu/binutils.html	https://sourceware.org/binutils/docs/binutils.html	2026-07-26	GNU Binutils HTML manual
+gnu/binutils.pdf	https://sourceware.org/binutils/docs/binutils.pdf	2026-07-26	GNU Binutils 2.46 PDF manual
+gnu/coreutils.html	https://www.gnu.org/software/coreutils/manual/coreutils.html	2026-07-26	GNU Coreutils manual
+gnu/gcc.pdf	https://gcc.gnu.org/onlinedocs/gcc.pdf	2026-07-26	GCC manual
+gnu/glibc.html	https://www.gnu.org/software/libc/manual/	2026-07-26	glibc 2.43 manual index
+gnu/glibc.pdf	https://sourceware.org/glibc/manual/latest/pdf/libc.pdf	2026-07-26	glibc 2.43 complete PDF manual
+gnu/ld.html	https://sourceware.org/binutils/docs/ld/index.html	2026-07-26	GNU linker HTML index
+gnu/ld.pdf	https://sourceware.org/binutils/docs/ld.pdf	2026-07-26	GNU linker 2.46 PDF manual
+gnu/make.html	https://www.gnu.org/software/make/manual/make.html	2026-07-26	GNU Make manual
+lfs/LFS-BOOK-13.0-NOCHUNKS.html	https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/LFS-BOOK-13.0-NOCHUNKS.html	2026-07-26	LFS 13.0 systemd single-page HTML
+lfs/LFS-BOOK-13.0-SYSD.pdf	https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/LFS-BOOK-13.0-SYSD.pdf	2026-07-26	LFS 13.0 systemd PDF
+lfs/LFS-BOOK-13.0.tar.xz	https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/LFS-BOOK-13.0.tar.xz	2026-07-26	LFS 13.0 systemd split HTML
+lfs/md5sums	https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/md5sums	2026-07-26	LFS 13.0 package checksums
+lfs/wget-list	https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/wget-list	2026-07-26	LFS 13.0 source list
+linux/man-pages-6.17.tar.xz	https://www.kernel.org/pub/linux/docs/man-pages/man-pages-6.17.tar.xz	2026-07-26	Linux userspace API manual pages
+linux/man-pages-6.18.tar.xz	https://www.kernel.org/pub/linux/docs/man-pages/man-pages-6.18.tar.xz	2026-07-26	Linux man-pages 6.18 sources
+linux/man-pages-6.18.pdf	https://www.kernel.org/pub/linux/docs/man-pages/book/man-pages-6.18.pdf	2026-07-26	Linux man-pages 6.18 PDF book
+pacman/pacman-7.1.0.tar.xz	https://gitlab.archlinux.org/pacman/pacman.git@5683f8477a0afcc6b331766175a83445b2dcfe89	2026-07-26	Deterministic git archive with pacman manuals
+systemd/systemd-man-pages-259.1.tar.xz	https://anduin.linuxfromscratch.org/LFS/systemd-man-pages-259.1.tar.xz	2026-07-26	systemd 259.1 manual pages used by LFS
+systemd/systemd-man-pages-261.1.tar.xz	https://anduin.linuxfromscratch.org/LFS/systemd-man-pages-261.1.tar.xz	2026-07-26	systemd 261.1 manual pages used by pinned current LFS recipe

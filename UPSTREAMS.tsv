@@ -1,0 +1,19 @@
+component	fork_or_source	canonical_upstream	pinned_ref	commit	use
+OpenWrt	https://github.com/dual1208/openwrt	https://github.com/openwrt/openwrt	v25.12.5	f0a60eee2fe051741c643ea6118718aae1ef17fb	E8450 UBI firmware build input
+Linux mainline	https://github.com/dual1208/linux	https://github.com/torvalds/linux	master		preserved fork; not a release build input
+Linux stable	https://github.com/dual1208/linux-stable	https://github.com/gregkh/linux	v7.1.5	dc529fe18aa9479a088c429048d52eaf164d036d	final PC kernel build input
+systemd	https://github.com/dual1208/systemd	https://github.com/systemd/systemd	v261.2	4925d9f07fc697efccd98a93046ff535b8832445	final PC systemd build input
+glibc	https://github.com/dual1208/glibc	https://sourceware.org/git/glibc.git	glibc-2.43	f762ccf84f122d1354f103a151cba8bde797d521	pinned LFS recipe component
+Binutils/GDB	https://github.com/dual1208/binutils-gdb	https://sourceware.org/git/binutils-gdb.git	binutils-2_46_1	5e56594815854de5eca35c7c04b11705d0f19c02	pinned LFS recipe component
+Coreutils	https://github.com/dual1208/coreutils	https://github.com/coreutils/coreutils	v9.11	c01fd163a47468a8296fb369f5233853bb551bb6	pinned LFS recipe component
+util-linux	https://github.com/dual1208/util-linux	https://github.com/util-linux/util-linux	v2.42.2	f44509230b9f8224993b8c6157f85888359a64e1	pinned LFS recipe component
+Shadow	https://github.com/dual1208/shadow	https://github.com/shadow-maint/shadow	4.19.4	115f7aa445f051a413d8b771efaa2ab0ca302770	pinned LFS recipe component
+Bash	https://github.com/dual1208/gnu_bash	https://git.savannah.gnu.org/git/bash.git	bash-5.3	b8c60bc9ca365f8261fa97900b6fa939f6ebc303	pinned LFS recipe component
+GCC	https://github.com/dual1208/gcc	https://gcc.gnu.org/git/gcc.git	releases/gcc-16.1.0	6afcc4f6da931eb93f3ab001a0dd9650ea71d1ea	pinned LFS recipe component
+pacman mirror	https://github.com/dual1208/pacman	https://gitlab.archlinux.org/pacman/pacman.git	v7.1.0	5683f8477a0afcc6b331766175a83445b2dcfe89	final PC package manager build input
+APT	https://github.com/dual1208/apt	https://salsa.debian.org/apt-team/apt	main		preserved alternative package-manager fork; not built
+dpkg	https://github.com/dual1208/dpkg	https://git.dpkg.org/git/dpkg/dpkg.git	main		preserved alternative package-manager fork; not built
+LFS book	https://git.linuxfromscratch.org/lfs.git	https://git.linuxfromscratch.org/lfs.git	development commit	1c2eb20b24b7131dd6f08b6e2eb70f740f3d1054	base-system recipe
+jhalfs	https://git.linuxfromscratch.org/jhalfs.git	https://git.linuxfromscratch.org/jhalfs.git	pinned commit	476870cd636d37a80629decbcfd8743563261a67	base-system build orchestrator
+dracut	https://github.com/dracut-ng/dracut	https://github.com/dracut-ng/dracut	111	b3b4f7ef914b84964a56500cfec83f21dc513e6a	final PC initramfs tooling
+linux-firmware	https://www.kernel.org/pub/linux/kernel/firmware/	https://gitlab.com/kernel-firmware/linux-firmware	20260622		final PC firmware archive; pinned by signed-manifest SHA-256
