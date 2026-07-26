@@ -307,6 +307,7 @@ if [[ -n ${kernel_image} ]]; then
 fi
 cp "${BUILD_ROOT}/boot/initramfs-7.1.5-oslab.img" "${OUTPUT_ROOT}/"
 cp "${BUILD_ROOT}/sources/oslab-extra/SOURCE-SHA256SUMS" "${OUTPUT_ROOT}/"
+cp "${TOOLING_ROOT}/LFS-SOURCE-SHA256SUMS" "${OUTPUT_ROOT}/"
 
 cat > "${OUTPUT_ROOT}/BUILD-MANIFEST.txt" <<EOF
 LFS_STABLE_REFERENCE=13.0-systemd
@@ -338,6 +339,7 @@ SYSTEMD_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/systemd-261
 LINUX_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/linux-7.1.5.tar.xz" | cut -d' ' -f1)
 DRACUT_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/dracut-111.tar.gz" | cut -d' ' -f1)
 LINUX_FIRMWARE_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/linux-firmware-20260622.tar.xz" | cut -d' ' -f1)
+LFS_SOURCE_HASH_MANIFEST_SHA256=$(sha256sum "${TOOLING_ROOT}/LFS-SOURCE-SHA256SUMS" | cut -d' ' -f1)
 EOF
 
 pushd "${OUTPUT_ROOT}" >/dev/null
