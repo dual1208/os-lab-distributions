@@ -11,6 +11,7 @@ This workspace builds two kinds of unofficial, reproducible artifacts:
 The controlling contract is [`specs/build-and-release.md`](specs/build-and-release.md).
 All paid cloud work is temporary, all release payloads are checksummed, and no
 script in this workspace flashes or installs anything on physical hardware.
+The manual PC handoff boundary is documented in [`INSTALL.md`](INSTALL.md).
 
 ## Layout
 
