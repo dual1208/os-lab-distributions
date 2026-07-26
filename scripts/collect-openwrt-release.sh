@@ -35,11 +35,14 @@ for image in "${images[@]}"; do
   cp "${image}" "${OUTPUT_ROOT}/"
 done
 
-for metadata in profiles.json sha256sums version.buildinfo feeds.buildinfo \
+for metadata in profiles.json version.buildinfo feeds.buildinfo \
   config.buildinfo; do
   [[ -f ${TARGET_ROOT}/${metadata} ]] && \
     cp "${TARGET_ROOT}/${metadata}" "${OUTPUT_ROOT}/"
 done
+[[ ! -f ${TARGET_ROOT}/sha256sums ]] || \
+  cp "${TARGET_ROOT}/sha256sums" \
+    "${OUTPUT_ROOT}/OPENWRT-UPSTREAM-SHA256SUMS"
 
 find "${TARGET_ROOT}" -maxdepth 1 -type f -name '*.manifest' -exec \
   cp {} "${OUTPUT_ROOT}/" \;
