@@ -578,7 +578,10 @@ After the kernel and modules succeeded, dracut still could not create an
 initramfs. GNU cpio was absent, and dracut's automatically selected systemd
 modules depended on `systemd-sysusers`, which this minimal rootfs intentionally
 did not install. The repair added pinned GNU cpio and explicitly selected
-dracut's traditional non-systemd initramfs path.
+dracut's traditional non-systemd initramfs path. A further compiler boundary
+appeared because cpio 2.15 predates GCC 16's newer default C dialect: the source
+was tested and then built explicitly as GNU C17 instead of being patched
+speculatively.
 
 This does not change PID 1 in the installed rootfs: the final system still uses
 systemd after the real root is mounted. Early userspace and the long-lived

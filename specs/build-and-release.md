@@ -37,7 +37,9 @@ temporary paid builder when publishing and verification are complete.
    configuration, and module tree are present. GNU cpio 2.15 supplies dracut's
    archive backend; because this bootstrap omits systemd-sysusers, the generic
    initramfs must explicitly use dracut's non-systemd path and pass an archive
-   integrity listing before packaging.
+   integrity listing before packaging. Build cpio in its supported GNU C17
+   dialect under GCC 16, and reuse completed final-layer ancestors only after
+   their installed versions match the pinned contract.
    Variants:
    - `zen5`: MECHREVO XINGYAO, AMD Ryzen AI 9 H 365, 32 GB RAM.
    - `skylake`: ThinkPad P73, Intel Core i7-9750H, 16 GB RAM, Quadro T2000.

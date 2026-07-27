@@ -60,26 +60,38 @@ build_autotools() {
   rm -rf -- "${directory}"
 }
 
-build_autotools libarchive-3.8.5.tar.xz libarchive-3.8.5 \
-  --without-xml2 --without-nettle
-build_autotools curl-8.18.0.tar.xz curl-8.18.0 \
-  --with-openssl --enable-threaded-resolver --without-libpsl
+if [[ $(bsdtar --version 2>/dev/null | sed -n '1p') != bsdtar\ 3.8.5\ * ]]; then
+  build_autotools libarchive-3.8.5.tar.xz libarchive-3.8.5 \
+    --without-xml2 --without-nettle
+else
+  echo 'reusing validated libarchive 3.8.5 installation'
+fi
+if [[ $(curl --version 2>/dev/null | sed -n '1p') != curl\ 8.18.0\ * ]]; then
+  build_autotools curl-8.18.0.tar.xz curl-8.18.0 \
+    --with-openssl --enable-threaded-resolver --without-libpsl
+else
+  echo 'reusing validated curl 8.18.0 installation'
+fi
 
-rm -rf systemd-261.2
-tar -xf systemd-261.2.tar.gz
-sed -e 's/GROUP="render"/GROUP="video"/' \
-    -e 's/GROUP="sgx", //' \
-    -i systemd-261.2/rules.d/50-udev-default.rules.in
-meson setup systemd-261.2/build systemd-261.2 \
-  --prefix=/usr --buildtype=release \
-  -Ddefault-dnssec=no -Dfirstboot=false -Dinstall-tests=false \
-  -Dldconfig=false -Dsysusers=false -Drpmmacrosdir=no \
-  -Dhomed=disabled -Dman=disabled -Dmode=release -Dpamconfdir=no \
-  -Ddev-kvm-mode=0660 -Dnobody-group=nogroup -Dsysupdate=disabled \
-  -Dukify=disabled -Ddocdir=/usr/share/doc/systemd-261.2
-ninja -C systemd-261.2/build -j4
-ninja -C systemd-261.2/build install
-rm -rf systemd-261.2
+if [[ $(systemctl --version 2>/dev/null | sed -n '1p') != 'systemd 261 (261.2)' ]]; then
+  rm -rf systemd-261.2
+  tar -xf systemd-261.2.tar.gz
+  sed -e 's/GROUP="render"/GROUP="video"/' \
+      -e 's/GROUP="sgx", //' \
+      -i systemd-261.2/rules.d/50-udev-default.rules.in
+  meson setup systemd-261.2/build systemd-261.2 \
+    --prefix=/usr --buildtype=release \
+    -Ddefault-dnssec=no -Dfirstboot=false -Dinstall-tests=false \
+    -Dldconfig=false -Dsysusers=false -Drpmmacrosdir=no \
+    -Dhomed=disabled -Dman=disabled -Dmode=release -Dpamconfdir=no \
+    -Ddev-kvm-mode=0660 -Dnobody-group=nogroup -Dsysupdate=disabled \
+    -Dukify=disabled -Ddocdir=/usr/share/doc/systemd-261.2
+  ninja -C systemd-261.2/build -j4
+  ninja -C systemd-261.2/build install
+  rm -rf systemd-261.2
+else
+  echo 'reusing validated systemd 261.2 installation'
+fi
 
 if [[ ! -s /boot/vmlinuz-7.1.5-oslab ]] || \
    [[ ! -s /boot/config-7.1.5-oslab ]] || \
@@ -119,16 +131,31 @@ rm -rf /usr/lib/firmware/.github /usr/lib/firmware/.gitlab-ci.yml
 rm -f /usr/lib/firmware/Makefile
 rm -rf linux-firmware-20260622
 
-build_autotools cpio-2.15.tar.bz2 cpio-2.15 --disable-nls
+if [[ $(cpio --version 2>/dev/null | sed -n '1p') != 'cpio (GNU cpio) 2.15' ]]; then
+  rm -rf cpio-2.15
+  tar -xf cpio-2.15.tar.bz2
+  pushd cpio-2.15 >/dev/null
+  CFLAGS='-O2 -std=gnu17' ./configure --prefix=/usr --disable-nls
+  make -j4
+  make install
+  popd >/dev/null
+  rm -rf cpio-2.15
+else
+  echo 'reusing validated GNU cpio 2.15 installation'
+fi
 
-rm -rf dracut-111
-tar -xf dracut-111.tar.gz
-pushd dracut-111 >/dev/null
-./configure --prefix=/usr --sysconfdir=/etc --disable-documentation
-make -j4
-make install
-popd >/dev/null
-rm -rf dracut-111
+if [[ $(dracut --version 2>/dev/null | sed -n '1p') != 'dracut 111' ]]; then
+  rm -rf dracut-111
+  tar -xf dracut-111.tar.gz
+  pushd dracut-111 >/dev/null
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-documentation
+  make -j4
+  make install
+  popd >/dev/null
+  rm -rf dracut-111
+else
+  echo 'reusing validated dracut 111 installation'
+fi
 dracut --force --no-hostonly \
   --omit 'systemd systemd-initrd systemd-journald dracut-systemd systemd-sysusers' \
   /boot/initramfs-7.1.5-oslab.img 7.1.5-oslab
