@@ -51,6 +51,9 @@ temporary paid builder when publishing and verification are complete.
    GNU/Linux artifacts in a dedicated `dual1208/os-lab-distributions`
    repository. Release notes must identify custom/unofficial builds and include
    installation boundaries and rollback guidance.
+7. Preserve the build's decisions and recovered failures as a staged,
+   beginner-safe Linux kernel learning course with disposable-VM labs,
+   observable checks, and explicit physical-hardware boundaries.
 
 ## Invariants
 
@@ -111,6 +114,9 @@ temporary paid builder when publishing and verification are complete.
 
 - The local reference manifest covers every retained file with URL, retrieval
   date, size, and SHA-256, and corrupt/HTML-error downloads are rejected.
+- The learning journey explains source provenance, toolchain/chroot layers,
+  Kconfig convergence, kernel/module builds, initramfs/rootfs boundaries,
+  resumable failures, packaging, and release re-download verification.
 - GitHub releases and repository metadata contain no sensitive local data.
 - The `osforge` droplet is destroyed and absence is confirmed through normalized
   cloud inventory after artifact verification.
