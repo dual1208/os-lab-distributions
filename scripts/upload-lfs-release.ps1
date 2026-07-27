@@ -31,9 +31,11 @@ $expectedNames = @(
 )
 
 function Get-DraftRelease {
-    $text = & gh api "repos/$Repository/releases/tags/$Tag"
+    $text = & gh api "repos/$Repository/releases?per_page=100"
     if ($LASTEXITCODE -ne 0) { throw 'GitHub release lookup failed.' }
-    $release = $text | ConvertFrom-Json
+    $matches = @(($text | ConvertFrom-Json) | Where-Object tag_name -eq $Tag)
+    if ($matches.Count -ne 1) { throw 'Exact GitHub release is not unique.' }
+    $release = $matches[0]
     if (-not $release.draft -or -not $release.prerelease -or $release.tag_name -ne $Tag) {
         throw 'Target is not the exact draft prerelease.'
     }
@@ -106,4 +108,3 @@ try {
 }
 
 exit $exitCode
-

@@ -738,6 +738,16 @@ Only the exact 14-asset set on the draft prerelease may advance. This makes a
 task-host restart cheap: already correct assets are evidence, not work to repeat.
 The draft remains unpublished until every digest passes.
 
+### Failure story: a draft tag is not a public tag endpoint
+
+The first uploader lookup used GitHub's release-by-tag endpoint. It returned
+404 because the target was still a draft, so the wrapper exited before uploading
+any asset. The authenticated release collection did contain exactly one matching
+draft. The repaired lookup therefore selects by tag from that collection and
+asserts uniqueness, draft state, and prerelease state. API resource visibility
+is part of the state machine: “the object exists” does not imply every endpoint
+can address it in every publication state.
+
 ### Failure story: the transport has a smaller unit than the artifact
 
 The two LFS rootfs archives are each larger than GitHub's 2 GiB per-asset
