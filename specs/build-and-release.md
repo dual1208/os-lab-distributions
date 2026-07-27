@@ -29,7 +29,9 @@ temporary paid builder when publishing and verification are complete.
    binutils 2.46.1, coreutils 9.11, GCC 16.1, glibc 2.43, shadow 4.19.4, and
    util-linux 2.42.2 releases; the final layer updates Linux to 7.1.5 and
    systemd to 261.2, installs dracut 111, and includes the official
-   linux-firmware 20260622 snapshot.
+   linux-firmware 20260622 snapshot. The finalizer's bootstrap HTTP client must
+   use the libraries present in the LFS base and must not auto-require the
+   optional libpsl dependency.
    Variants:
    - `zen5`: MECHREVO XINGYAO, AMD Ryzen AI 9 H 365, 32 GB RAM.
    - `skylake`: ThinkPad P73, Intel Core i7-9750H, 16 GB RAM, Quadro T2000.

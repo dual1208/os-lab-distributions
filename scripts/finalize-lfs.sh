@@ -60,7 +60,7 @@ build_autotools() {
 build_autotools libarchive-3.8.5.tar.xz libarchive-3.8.5 \
   --without-xml2 --without-nettle
 build_autotools curl-8.18.0.tar.xz curl-8.18.0 \
-  --with-openssl --enable-threaded-resolver
+  --with-openssl --enable-threaded-resolver --without-libpsl
 
 rm -rf systemd-261.2
 tar -xf systemd-261.2.tar.gz
