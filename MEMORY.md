@@ -11,7 +11,9 @@
   the worker and SFTP processes later disappeared while partial files remained
   and no success marker existed.
 - Reusable lesson: resume exact files with SFTP `reget`, bound concurrency,
-  schedule large parts first, run slow work in a named PSMUX session, and treat
-  only a checksum-backed `EXIT=0` marker as completion.
+  schedule large parts first, and run slow work in a named PSMUX session. PSMUX
+  survives an agent turn but not a Windows sign-out or server recreation, so
+  durable data plus a checksum-backed `EXIT=0` marker—not the supervisor—define
+  completion.
 - Verification: two SFTP workers resumed existing parts inside the named
   `oslab-transfer` session; the final gate still hashes every manifest entry.

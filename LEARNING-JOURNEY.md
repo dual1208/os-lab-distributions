@@ -673,7 +673,12 @@ psmux new-session -d -s oslab-transfer -- pwsh -NoProfile -File `
   scripts/download-lfs-release.ps1
 ```
 
-The supervising process now has a lifecycle independent of a single agent turn.
+The supervising process now has a lifecycle independent of a single agent turn,
+but not of a Windows sign-out or PSMUX server restart. A later sign-in boundary
+recreated the multiplexer and ended the finite upload session; digest-aware
+resume then reused every completed GitHub asset. Persistent data and markers,
+not any one process supervisor, are the final source of truth.
+
 The general state model is $(J,D,M)$: $J$ is the supervised process, $D$ is
 partial durable data, and $M$ is the terminal marker. Losing $J$ does not erase
 $D$, and only `EXIT=0` in $M$ advances the pipeline. A missing marker is never
