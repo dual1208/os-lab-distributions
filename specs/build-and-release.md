@@ -121,8 +121,13 @@ temporary paid builder when publishing and verification are complete.
   bootable additionally reaches systemd multi-user target in a bounded QEMU
   smoke test; otherwise it is labeled bootstrap-only.
 - Published assets re-download and match the release checksums.
-- The complete remote and re-downloaded payloads pass the versioned LFS release
-  validator in a detached logged stage with a durable exit marker.
+- The complete remote payload passes the versioned LFS release validator in a
+  detached logged stage with a durable exit marker. That builder-side run must
+  enumerate the initramfs with the `lsinitrd` from the producing rootfs. A
+  re-downloaded payload may omit that environment-specific enumeration only
+  after every byte is tied to the structurally validated payload by the
+  published SHA-256 manifest; all portable archive, profile, configuration,
+  provenance, and sanitization checks still run.
 
 ### References and cleanup
 

@@ -592,6 +592,23 @@ $B=Y\cup(M\cap I)$ or that all of its companion tools exist in the initramfs.
 The reusable test is twofold: the initramfs file must be nonempty, and
 `lsinitrd` must be able to enumerate it before packaging continues.
 
+There is a subtle validation boundary here: `lsinitrd` belongs to dracut and is
+not guaranteed to exist on a later download workstation. The builder therefore
+enumerates the image with the tool from the rootfs that produced it. A fresh
+download then proves byte identity with SHA-256 and repeats every portable
+check. If $I_b$ is the builder-tested image and $I_d$ is the download, the
+handoff argument is
+
+$$
+\operatorname{listable}(I_b)\land
+H_{\mathrm{SHA256}}(I_b)=H_{\mathrm{SHA256}}(I_d)
+\Longrightarrow I_d=I_b
+$$
+
+under the standard collision-resistance assumption. This is stronger than
+silently skipping a tool: the skip is explicit, and it is allowed only after
+the checksum manifest has passed.
+
 ### Failure story: configuration cannot promise a missing capability
 
 Pacman 7.1.0 was deliberately built without GPGME to keep the bootstrap's

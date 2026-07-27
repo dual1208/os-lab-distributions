@@ -65,7 +65,16 @@ for option in \
   CONFIG_R8169 CONFIG_IWLWIFI CONFIG_SND_HDA_INTEL; do
   grep -Eq "^${option}=(y|m)$" kernel-7.1.5-oslab.config
 done
-lsinitrd initramfs-7.1.5-oslab.img >/dev/null
+if command -v lsinitrd >/dev/null 2>&1; then
+  lsinitrd initramfs-7.1.5-oslab.img >/dev/null
+elif [[ ${OUTPUT_ROOT} == /srv/oslab-output ]] &&
+     [[ -x /mnt/oslab-lfs/usr/bin/lsinitrd ]]; then
+  chroot /mnt/oslab-lfs /usr/bin/env -i \
+    PATH=/usr/bin:/usr/sbin \
+    /usr/bin/lsinitrd /boot/initramfs-7.1.5-oslab.img >/dev/null
+else
+  echo 'INITRAMFS_LISTING_SKIPPED checksum-tied-to-builder-validation'
+fi
 
 grep -q '^LINUX_VERSION=7.1.5$' BUILD-MANIFEST.txt
 grep -q '^SYSTEMD_VERSION=261.2$' BUILD-MANIFEST.txt
