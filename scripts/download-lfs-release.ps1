@@ -1,3 +1,4 @@
+#requires -Version 7.0
 [CmdletBinding()]
 param(
     [string] $Destination = (Join-Path $PSScriptRoot '..\out\oslab-release-staged')
@@ -114,6 +115,10 @@ try {
 } catch {
     'ERROR=download-or-checksum-validation-failed' |
         Add-Content -LiteralPath $statusLog -Encoding ascii
+    $safeDetail = $_.Exception.Message -replace '([0-9]{1,3}\.){3}[0-9]{1,3}', '[redacted-address]'
+    $safeDetail = $safeDetail -replace 'root@\S+', 'root@[redacted]'
+    $safeDetail = $safeDetail -replace '[\r\n]+', ' '
+    "ERROR_DETAIL=$safeDetail" | Add-Content -LiteralPath $statusLog -Encoding ascii
 } finally {
     foreach ($batchPath in $batchFiles) {
         Remove-Item -LiteralPath $batchPath -Force -ErrorAction SilentlyContinue

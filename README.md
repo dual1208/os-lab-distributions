@@ -35,7 +35,8 @@ New kernel developers can follow the staged, failure-informed course in
   durable packaging exit marker and revalidates the complete staged payload.
 - `scripts/download-lfs-release.ps1` copies that exact staged payload from the
   named disposable builder with two bounded, resume-capable transfers and
-  emits a local success marker only after all downloaded SHA-256 values match.
+  emits a local success marker only after all downloaded SHA-256 values match;
+  run it with PowerShell 7 (`pwsh`), not legacy Windows PowerShell.
 - `UPSTREAMS.tsv` maps every preserved fork and build input to its canonical
   upstream, immutable release reference, and source commit.
 - `reference/` contains offline documentation kept out of Git; its source and

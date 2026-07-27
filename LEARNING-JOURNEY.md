@@ -741,6 +741,14 @@ an existing file is skipped only when its SHA-256 already matches. In symbols,
 the resume set is $R=\{f\mid f\notin D\lor H(D[f])\ne M[f]\}$, and success still
 requires $R=\varnothing$ after every transfer and final hash pass.
 
+One orchestration failure came from launching the durable wrapper with legacy
+`powershell.exe` instead of the workstation's PowerShell 7 `pwsh`. The older
+process did not expose the expected hashing command in its runtime environment.
+The script now declares its minimum engine version, and the runbook names the
+executable explicitly. A shell name is part of a build stage's dependency set,
+just like a compiler or initramfs tool; similar syntax does not imply an
+identical module environment.
+
 ## Chapter 13: reproduce the full OS Lab build
 
 Do this only after the smaller labs, on a disposable Ubuntu builder. Review all
