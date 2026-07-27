@@ -45,7 +45,11 @@ temporary paid builder when publishing and verification are complete.
    - `skylake`: ThinkPad P73, Intel Core i7-9750H, 16 GB RAM, Quadro T2000.
 4. Use pacman as the post-bootstrap package manager for the custom GNU/Linux
    system. Package-manager metadata and exact source revisions must be present
-   in each artifact. CPU tuning may apply to userland packages, but the kernel,
+   in each artifact. This minimal bootstrap builds pacman without GPGME and
+   configures no remote repositories; its local database must not declare
+   unavailable signature support. Rebuild pacman with GPGME and establish a
+   trusted keyring before adding any network repository. CPU tuning may apply
+   to userland packages, but the kernel,
    bootloader, and recovery path must remain compatible with the named machine.
    The shared kernel configuration must retain EFI, NVMe, AHCI, ext4, VFAT,
    VirtIO, AMDGPU, Nouveau, Intel i915, common wired and wireless adapters, and

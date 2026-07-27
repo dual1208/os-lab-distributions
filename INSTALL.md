@@ -16,6 +16,9 @@ Before using an archive on either named PC:
    included template assumes `LABEL=oslab-root`.
 4. Chroot into the target, create an administrator, set credentials, and leave
    the root account locked unless there is a documented recovery need.
+   Pacman initially contains only local bootstrap metadata and was built without
+   GPGME; rebuild it with GPGME and establish a trusted keyring before adding
+   any remote package repository.
 5. Review the selected hardware profile under `/etc/oslab/`, regenerate the
    initramfs with dracut for the actual storage and encryption layout, and
    install an EFI bootloader of your choice.

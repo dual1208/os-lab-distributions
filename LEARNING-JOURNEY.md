@@ -592,6 +592,23 @@ $B=Y\cup(M\cap I)$ or that all of its companion tools exist in the initramfs.
 The reusable test is twofold: the initramfs file must be nonempty, and
 `lsinitrd` must be able to enumerate it before packaging continues.
 
+### Failure story: configuration cannot promise a missing capability
+
+Pacman 7.1.0 was deliberately built without GPGME to keep the bootstrap's
+dependency closure small. Its first configuration nevertheless set `SigLevel`,
+which asks libalpm to use signature support that was not compiled in. Pacman
+correctly rejected the contradiction before initializing its local database.
+
+The repair removed signature directives and retained an empty repository set.
+This is suitable only for the two locally created bootstrap metadata packages;
+it is not permission to consume unsigned network repositories. Before adding a
+repository, rebuild pacman with GPGME, create or import a trusted keyring, and
+define an actual signature policy. The general invariant is:
+
+$$
+\text{configured capabilities}\subseteq\text{compiled capabilities}.
+$$
+
 ## Chapter 10: make failure resumable
 
 Long builds should run as named, logged jobs and emit a durable terminal record.

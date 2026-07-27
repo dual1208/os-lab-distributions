@@ -162,15 +162,22 @@ dracut --force --no-hostonly \
 test -s /boot/initramfs-7.1.5-oslab.img
 lsinitrd /boot/initramfs-7.1.5-oslab.img >/dev/null
 
-rm -rf pacman-7.1.0 pacman-pkgroot
-tar -xf pacman-7.1.0.tar.xz
-meson setup pacman-7.1.0/build pacman-7.1.0 \
-  --prefix=/usr --buildtype=release \
-  -Dcrypto=openssl -Ddoc=disabled -Ddoxygen=disabled -Dgpgme=disabled
-ninja -C pacman-7.1.0/build -j4
-DESTDIR=/sources/oslab-extra/pacman-pkgroot \
+pacman_version=$(pacman --version 2>/dev/null || true)
+if [[ ${pacman_version} != *'Pacman v7.1.0 - libalpm v16.0.0'* ]] || \
+   [[ ! -x pacman-pkgroot/usr/bin/pacman ]]; then
+  rm -rf pacman-7.1.0 pacman-pkgroot
+  tar -xf pacman-7.1.0.tar.xz
+  meson setup pacman-7.1.0/build pacman-7.1.0 \
+    --prefix=/usr --buildtype=release \
+    -Dcrypto=openssl -Ddoc=disabled -Ddoxygen=disabled -Dgpgme=disabled
+  ninja -C pacman-7.1.0/build -j4
+  DESTDIR=/sources/oslab-extra/pacman-pkgroot \
+    ninja -C pacman-7.1.0/build install
   ninja -C pacman-7.1.0/build install
-ninja -C pacman-7.1.0/build install
+else
+  echo 'reusing validated pacman 7.1.0 installation and package root'
+fi
+rm -rf pacman-7.1.0
 
 install -d -m 0755 /var/lib/pacman/local /var/cache/pacman/pkg /var/log
 cat > /etc/pacman.conf <<'EOF'
@@ -180,8 +187,8 @@ DBPath = /var/lib/pacman/
 CacheDir = /var/cache/pacman/pkg/
 LogFile = /var/log/pacman.log
 Architecture = auto
-SigLevel = Required DatabaseOptional
-LocalFileSigLevel = Optional
+# This bootstrap has no remote repositories and pacman was built without GPGME.
+# Rebuild with GPGME and establish a trusted keyring before adding repositories.
 EOF
 
 cat > pacman-pkgroot/.PKGINFO <<'EOF'
