@@ -86,6 +86,7 @@ scripts/config --set-str SYSTEM_TRUSTED_KEYS ''
 scripts/config --set-str SYSTEM_REVOCATION_KEYS ''
 scripts/config --disable MODULE_SIG_ALL
 scripts/config --disable DEBUG_INFO_BTF
+scripts/config --disable GCC_PLUGINS
 make olddefconfig </dev/null
 make -j4
 make modules_install

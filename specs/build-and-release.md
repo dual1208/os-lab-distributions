@@ -40,6 +40,9 @@ temporary paid builder when publishing and verification are complete.
    The shared kernel configuration must retain EFI, NVMe, AHCI, ext4, VFAT,
    VirtIO, AMDGPU, Nouveau, Intel i915, common wired and wireless adapters, and
    HDA audio so either profile remains a recoverable cross-machine bootstrap.
+   Configuration convergence must be noninteractive in the final LFS chroot;
+   optional GCC plugins remain disabled so `make oldconfig` cannot block on a
+   host-toolchain-dependent prompt.
 5. Retain local copies of the stable LFS/BLFS books and relevant GNU, Linux,
    systemd, and package-manager manuals. Record source URLs and SHA-256 hashes.
 6. Publish custom OpenWrt firmware as a release on `dual1208/openwrt` and the
