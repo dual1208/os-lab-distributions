@@ -603,7 +603,10 @@ The repair removed signature directives and retained an empty repository set.
 This is suitable only for the two locally created bootstrap metadata packages;
 it is not permission to consume unsigned network repositories. Before adding a
 repository, rebuild pacman with GPGME, create or import a trusted keyring, and
-define an actual signature policy. The general invariant is:
+define an actual signature policy. A second package-boundary check ensures
+`.PKGINFO` is stored at the archive root rather than under a leading `./`, then
+uses `pacman -Qp` to prove libalpm recognizes the package before installation.
+The general invariant is:
 
 $$
 \text{configured capabilities}\subseteq\text{compiled capabilities}.

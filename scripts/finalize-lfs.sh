@@ -157,7 +157,7 @@ else
   echo 'reusing validated dracut 111 installation'
 fi
 dracut --force --no-hostonly \
-  --omit 'systemd systemd-initrd systemd-journald dracut-systemd systemd-sysusers' \
+  --omit 'systemd systemd-initrd systemd-journald dracut-systemd systemd-sysusers systemd-battery-check' \
   /boot/initramfs-7.1.5-oslab.img 7.1.5-oslab
 test -s /boot/initramfs-7.1.5-oslab.img
 lsinitrd /boot/initramfs-7.1.5-oslab.img >/dev/null
@@ -203,7 +203,9 @@ size = 0
 arch = x86_64
 license = GPL-2.0-or-later
 EOF
-tar --zstd -C pacman-pkgroot -cf pacman-7.1.0-1-x86_64.pkg.tar.zst .
+tar --zstd -C pacman-pkgroot -cf pacman-7.1.0-1-x86_64.pkg.tar.zst \
+  .PKGINFO etc usr var
+pacman -Qp pacman-7.1.0-1-x86_64.pkg.tar.zst
 pacman -U --noconfirm --dbonly pacman-7.1.0-1-x86_64.pkg.tar.zst
 
 rm -rf base-meta
@@ -221,7 +223,9 @@ arch = x86_64
 license = custom
 depend = pacman
 EOF
-tar --zstd -C base-meta -cf oslab-lfs-base-2026.07-1-x86_64.pkg.tar.zst .
+tar --zstd -C base-meta -cf oslab-lfs-base-2026.07-1-x86_64.pkg.tar.zst \
+  .PKGINFO
+pacman -Qp oslab-lfs-base-2026.07-1-x86_64.pkg.tar.zst
 pacman -U --noconfirm oslab-lfs-base-2026.07-1-x86_64.pkg.tar.zst
 pacman -Q pacman oslab-lfs-base
 install -d -m 0755 /etc/oslab
