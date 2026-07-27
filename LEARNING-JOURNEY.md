@@ -661,6 +661,24 @@ find /mnt/oslab-lfs/jhalfs/logs -type f -mmin -30 -print
 Read errors as evidence, not as commands. Determine the failed layer before
 changing anything.
 
+### Failure story: detached is not the same as supervised
+
+A workstation transfer launched with `Start-Process` survived ordinary command
+returns but disappeared when the task host refreshed. Its partial files were
+valid progress, yet no terminal marker existed. The repair moved the same
+resume-aware wrapper into an ordinary named PSMUX session:
+
+```powershell
+psmux new-session -d -s oslab-transfer -- pwsh -NoProfile -File `
+  scripts/download-lfs-release.ps1
+```
+
+The supervising process now has a lifecycle independent of a single agent turn.
+The general state model is $(J,D,M)$: $J$ is the supervised process, $D$ is
+partial durable data, and $M$ is the terminal marker. Losing $J$ does not erase
+$D$, and only `EXIT=0` in $M$ advances the pipeline. A missing marker is never
+silently promoted to success.
+
 ## Chapter 11: package reproducibly
 
 The finalizer uses deterministic archive ordering and timestamps, preserves
