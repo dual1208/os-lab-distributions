@@ -121,6 +121,8 @@ temporary paid builder when publishing and verification are complete.
   bootable additionally reaches systemd multi-user target in a bounded QEMU
   smoke test; otherwise it is labeled bootstrap-only.
 - Published assets re-download and match the release checksums.
+- The complete remote and re-downloaded payloads pass the versioned LFS release
+  validator in a detached logged stage with a durable exit marker.
 
 ### References and cleanup
 
