@@ -12,6 +12,7 @@ $marker = Join-Path $outRoot 'lfs-download.exit'
 $statusLog = Join-Path $outRoot 'lfs-download.log'
 $exitCode = 1
 $batchFiles = [Collections.Generic.List[string]]::new()
+$maxParallel = 2
 
 if (-not $destinationRoot.StartsWith(
         $outRoot + [IO.Path]::DirectorySeparatorChar,
@@ -68,7 +69,7 @@ try {
     $localDirectory = $destinationRoot.Replace('\', '/')
     while ($pending.Count -gt 0) {
         $wave = [Collections.Generic.List[object]]::new()
-        while ($wave.Count -lt 4 -and $pending.Count -gt 0) {
+        while ($wave.Count -lt $maxParallel -and $pending.Count -gt 0) {
             $entry = $pending.Dequeue()
             $batchPath = Join-Path $outRoot ("sftp-$([guid]::NewGuid().ToString('N')).batch")
             @(
@@ -94,6 +95,8 @@ try {
             $transfer.Process.WaitForExit()
             if ($transfer.Process.ExitCode -ne 0) {
                 $waveFailed = $true
+                "TRANSFER_FAILURE=$($transfer.Name):$($transfer.Process.ExitCode)" |
+                    Add-Content -LiteralPath $statusLog -Encoding ascii
             }
         }
         if ($waveFailed) { throw 'Resume-capable artifact transfer failed.' }

@@ -735,7 +735,7 @@ are deliberately summarized without recording the temporary cloud address.
 
 The first single-stream copy made progress but far too slowly for a practical
 runbook. The safe optimization was not to discard its partial data: SFTP's
-`reget` resumes each exact filename, while a four-transfer bound adds concurrency
+`reget` resumes each exact filename, while a two-transfer bound adds concurrency
 without an unbounded connection fan-out. Existence is never a completion test;
 an existing file is skipped only when its SHA-256 already matches. In symbols,
 the resume set is $R=\{f\mid f\notin D\lor H(D[f])\ne M[f]\}$, and success still
