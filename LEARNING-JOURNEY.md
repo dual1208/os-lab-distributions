@@ -708,6 +708,25 @@ sha256sum --check SHA256SUMS
 This is not redundant. It tests the release boundary, asset selection, naming,
 and bytes served to future users.
 
+### Failure story: the transport has a smaller unit than the artifact
+
+The two LFS rootfs archives are each larger than GitHub's 2 GiB per-asset
+limit. That is a publication constraint, not a reason to rebuild or weaken
+compression. The packaging gate splits each already-validated byte stream into
+1,900 MiB parts and records two layers of checksums. If archive $A$ becomes
+ordered parts $P_0,\ldots,P_n$, the required invariants are
+
+$$
+A=P_0\Vert\cdots\Vert P_n,\qquad |P_i|<2^{31},\qquad
+H(A)=H(P_0\Vert\cdots\Vert P_n).
+$$
+
+`SHA256SUMS` authenticates each transported part; `ROOTFS-SHA256SUMS`
+authenticates the reconstructed archive. The release validator streams the
+parts directly through SHA-256, zstd, and tar, so verification does not require
+another multi-gigabyte temporary copy. This is the general mental model:
+packaging may change transport framing, but must not change artifact semantics.
+
 ## Chapter 13: reproduce the full OS Lab build
 
 Do this only after the smaller labs, on a disposable Ubuntu builder. Review all

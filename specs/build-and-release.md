@@ -121,6 +121,10 @@ temporary paid builder when publishing and verification are complete.
   bootable additionally reaches systemd multi-user target in a bounded QEMU
   smoke test; otherwise it is labeled bootstrap-only.
 - Published assets re-download and match the release checksums.
+- Every GitHub release asset is smaller than 2 GiB. Each larger rootfs archive
+  is losslessly split into 1,900 MiB parts; the release records both the part
+  hashes and the SHA-256 of the reassembled archive, and validates
+  `hash(concat(parts)) = hash(original)` before upload.
 - The complete remote payload passes the versioned LFS release validator in a
   detached logged stage with a durable exit marker. That builder-side run must
   enumerate the initramfs with the `lsinitrd` from the producing rootfs. A

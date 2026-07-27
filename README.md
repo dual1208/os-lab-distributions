@@ -30,6 +30,9 @@ New kernel developers can follow the staged, failure-informed course in
 - `scripts/validate-lfs-release.sh` verifies the exact LFS payload, checksums,
   archive integrity and contents, kernel options, initramfs, profiles, and
   sanitized metadata; `scripts/run-lfs-validation.sh` gives it a durable marker.
+- `scripts/prepare-lfs-release.sh` converts validated rootfs archives into
+  GitHub-compatible split assets without recompression; its wrapper records a
+  durable packaging exit marker and revalidates the complete staged payload.
 - `UPSTREAMS.tsv` maps every preserved fork and build input to its canonical
   upstream, immutable release reference, and source commit.
 - `reference/` contains offline documentation kept out of Git; its source and

@@ -2,22 +2,46 @@
 set -euo pipefail
 
 readonly OUTPUT_ROOT=${1:-/srv/oslab-output}
-readonly -a EXPECTED=(
+readonly -a COMMON_EXPECTED=(
   BUILD-MANIFEST.txt
   LFS-SOURCE-SHA256SUMS
-  SHA256SUMS
   SOURCE-SHA256SUMS
   UPSTREAMS.tsv
   initramfs-7.1.5-oslab.img
   kernel-7.1.5-oslab.config
+  vmlinuz-7.1.5-oslab
+)
+readonly -a BUILDER_EXPECTED=(
+  "${COMMON_EXPECTED[@]}"
+  SHA256SUMS
   oslab-2026.07-skylake-rootfs.tar.zst
   oslab-2026.07-zen5-rootfs.tar.zst
-  vmlinuz-7.1.5-oslab
+)
+readonly -a PUBLISHED_EXPECTED=(
+  "${COMMON_EXPECTED[@]}"
+  REASSEMBLE.md
+  ROOTFS-SHA256SUMS
+  SHA256SUMS
+  oslab-2026.07-skylake-rootfs.tar.zst.part00
+  oslab-2026.07-skylake-rootfs.tar.zst.part01
+  oslab-2026.07-zen5-rootfs.tar.zst.part00
+  oslab-2026.07-zen5-rootfs.tar.zst.part01
 )
 
 if [[ ! -d ${OUTPUT_ROOT} ]]; then
   echo "release directory is missing: ${OUTPUT_ROOT}" >&2
   exit 2
+fi
+
+if [[ -f ${OUTPUT_ROOT}/oslab-2026.07-zen5-rootfs.tar.zst ]]; then
+  readonly MODE=builder
+  EXPECTED=("${BUILDER_EXPECTED[@]}")
+elif [[ -f ${OUTPUT_ROOT}/ROOTFS-SHA256SUMS ]]; then
+  readonly MODE=published
+  EXPECTED=("${PUBLISHED_EXPECTED[@]}")
+else
+  echo 'release directory is neither a builder nor published payload' >&2
+  exit 3
 fi
 
 for name in "${EXPECTED[@]}"; do
@@ -42,20 +66,37 @@ for name in "${EXPECTED[@]}"; do
 done
 sha256sum --check --strict SHA256SUMS
 
-zstd --test oslab-2026.07-zen5-rootfs.tar.zst \
-  oslab-2026.07-skylake-rootfs.tar.zst
+stream_archive() {
+  local archive=$1
+  if [[ ${MODE} == builder ]]; then
+    cat "${archive}"
+  else
+    cat "${archive}.part00" "${archive}.part01"
+  fi
+}
+
 for profile in zen5 skylake; do
   archive="oslab-2026.07-${profile}-rootfs.tar.zst"
-  tar --zstd -tf "${archive}" \
+  if [[ ${MODE} == published ]]; then
+    for part in "${archive}.part00" "${archive}.part01"; do
+      (( $(stat -c %s "${part}") < 2147483648 ))
+    done
+    expected_hash=$(awk -v name="${archive}" '$2 == name { print $1 }' \
+      ROOTFS-SHA256SUMS)
+    actual_hash=$(stream_archive "${archive}" | sha256sum | awk '{ print $1 }')
+    [[ ${actual_hash} == "${expected_hash}" ]]
+  fi
+  stream_archive "${archive}" | zstd --test -
+  stream_archive "${archive}" | tar --zstd -tf - \
     ./etc/os-release \
     ./etc/oslab/hardware-profile \
     ./usr/share/doc/oslab/INSTALL.md \
     ./boot/vmlinuz-7.1.5-oslab \
     ./boot/initramfs-7.1.5-oslab.img >/dev/null
 done
-tar --zstd -xOf oslab-2026.07-zen5-rootfs.tar.zst \
+stream_archive oslab-2026.07-zen5-rootfs.tar.zst | tar --zstd -xOf - \
   ./etc/oslab/hardware-profile | grep -qx 'compiler_tune=znver5'
-tar --zstd -xOf oslab-2026.07-skylake-rootfs.tar.zst \
+stream_archive oslab-2026.07-skylake-rootfs.tar.zst | tar --zstd -xOf - \
   ./etc/oslab/hardware-profile | grep -qx 'compiler_tune=skylake'
 
 for option in \
@@ -67,7 +108,7 @@ for option in \
 done
 if command -v lsinitrd >/dev/null 2>&1; then
   lsinitrd initramfs-7.1.5-oslab.img >/dev/null
-elif [[ ${OUTPUT_ROOT} == /srv/oslab-output ]] &&
+elif [[ ${MODE} == builder ]] && [[ ${OUTPUT_ROOT} == /srv/oslab-output ]] &&
      [[ -x /mnt/oslab-lfs/usr/bin/lsinitrd ]]; then
   chroot /mnt/oslab-lfs /usr/bin/env -i \
     PATH=/usr/bin:/usr/sbin \
@@ -91,4 +132,4 @@ if grep -ERn \
 fi
 popd >/dev/null
 
-echo "LFS_RELEASE_VALIDATION_OK files=${#EXPECTED[@]}"
+echo "LFS_RELEASE_VALIDATION_OK mode=${MODE} files=${#EXPECTED[@]}"
