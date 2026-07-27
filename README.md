@@ -33,6 +33,9 @@ New kernel developers can follow the staged, failure-informed course in
 - `scripts/prepare-lfs-release.sh` converts validated rootfs archives into
   GitHub-compatible split assets without recompression; its wrapper records a
   durable packaging exit marker and revalidates the complete staged payload.
+- `scripts/download-lfs-release.ps1` copies that exact staged payload from the
+  named disposable builder and emits a local success marker only after all
+  downloaded SHA-256 values match.
 - `UPSTREAMS.tsv` maps every preserved fork and build input to its canonical
   upstream, immutable release reference, and source commit.
 - `reference/` contains offline documentation kept out of Git; its source and

@@ -727,6 +727,12 @@ parts directly through SHA-256, zstd, and tar, so verification does not require
 another multi-gigabyte temporary copy. This is the general mental model:
 packaging may change transport framing, but must not change artifact semantics.
 
+The workstation-side transfer is also a gated stage. It resolves `osforge` by
+both immutable provider ID and expected name, downloads into a fresh directory,
+and hashes all 13 manifest entries before writing `EXIT=0`. Keeping the marker
+outside the payload preserves the exact 14-file release set. Transport errors
+are deliberately summarized without recording the temporary cloud address.
+
 ## Chapter 13: reproduce the full OS Lab build
 
 Do this only after the smaller labs, on a disposable Ubuntu builder. Review all

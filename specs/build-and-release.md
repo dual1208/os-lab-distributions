@@ -121,6 +121,10 @@ temporary paid builder when publishing and verification are complete.
   bootable additionally reaches systemd multi-user target in a bounded QEMU
   smoke test; otherwise it is labeled bootstrap-only.
 - Published assets re-download and match the release checksums.
+- The local staging download begins only after the remote packaging marker is
+  `EXIT=0`, selects the disposable builder by exact provider ID and name, and
+  writes its own durable exit marker only after every staged asset matches
+  `SHA256SUMS`.
 - Every GitHub release asset is smaller than 2 GiB. Each larger rootfs archive
   is losslessly split into 1,900 MiB parts; the release records both the part
   hashes and the SHA-256 of the reassembled archive, and validates
