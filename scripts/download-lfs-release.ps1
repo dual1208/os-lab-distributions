@@ -57,13 +57,26 @@ try {
     }
     if (@($entries).Count -ne 13) { throw 'Unexpected checksum entry count.' }
 
-    $pending = [Collections.Generic.Queue[object]]::new()
+    $pendingEntries = [Collections.Generic.List[object]]::new()
     foreach ($entry in $entries) {
         $path = Join-Path $destinationRoot $entry.Name
         if (Test-Path -LiteralPath $path) {
             $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actual -eq $entry.Hash) { continue }
         }
+        [void] $pendingEntries.Add($entry)
+    }
+    $sortProperties = @(
+        @{ Expression = {
+            if ($_.Name -like '*.part00') { 0 }
+            elseif ($_.Name -like '*.part01') { 1 }
+            else { 2 }
+        } }
+        'Name'
+    )
+    $orderedEntries = @($pendingEntries | Sort-Object -Property $sortProperties)
+    $pending = [Collections.Generic.Queue[object]]::new()
+    foreach ($entry in $orderedEntries) {
         $pending.Enqueue($entry)
     }
 

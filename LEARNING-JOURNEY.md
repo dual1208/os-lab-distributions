@@ -741,6 +741,14 @@ an existing file is skipped only when its SHA-256 already matches. In symbols,
 the resume set is $R=\{f\mid f\notin D\lor H(D[f])\ne M[f]\}$, and success still
 requires $R=\varnothing$ after every transfer and final hash pass.
 
+An initial two-file wave paired one full 1,900 MiB part with a shorter remainder,
+then left one slot idle while the long file continued. The retry uses the
+largest-processing-time-first mental model: schedule both `part00` files before
+the `part01` remainders. For two identical transfer slots and estimated sizes
+$p_i$, LPT greedily assigns jobs in descending $p_i$ order to reduce the
+makespan $C_{\max}=\max_j\sum_{i\in S_j}p_i$. It is scheduling, not integrity;
+the same final hashes remain the authority.
+
 One orchestration failure came from launching the durable wrapper with legacy
 `powershell.exe` instead of the workstation's PowerShell 7 `pwsh`. The older
 process did not expose the expected hashing command in its runtime environment.

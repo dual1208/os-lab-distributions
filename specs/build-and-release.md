@@ -126,7 +126,8 @@ temporary paid builder when publishing and verification are complete.
   writes its own durable exit marker only after every staged asset matches
   `SHA256SUMS`. Interrupted files resume in place and at most two exact-file
   SFTP transfers run concurrently; a retry never treats a partial file as
-  complete merely because it exists.
+  complete merely because it exists. Incomplete full-size `part00` assets are
+  scheduled before shorter remainder parts to avoid an idle transfer slot.
 - Every GitHub release asset is smaller than 2 GiB. Each larger rootfs archive
   is losslessly split into 1,900 MiB parts; the release records both the part
   hashes and the SHA-256 of the reassembled archive, and validates
