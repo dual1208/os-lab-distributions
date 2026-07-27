@@ -121,6 +121,10 @@ temporary paid builder when publishing and verification are complete.
   bootable additionally reaches systemd multi-user target in a bounded QEMU
   smoke test; otherwise it is labeled bootstrap-only.
 - Published assets re-download and match the release checksums.
+- LFS public verification downloads every asset from the published tag into a
+  separate directory, first proves the public `SHA256SUMS` equals the packaged
+  manifest, then reruns the complete published-payload validator under a
+  detached wrapper with a durable exit marker.
 - The local staging download begins only after the remote packaging marker is
   `EXIT=0`, selects the disposable builder by exact provider ID and name, and
   writes its own durable exit marker only after every staged asset matches

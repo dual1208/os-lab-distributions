@@ -731,6 +731,13 @@ sha256sum --check SHA256SUMS
 This is not redundant. It tests the release boundary, asset selection, naming,
 and bytes served to future users.
 
+The final LFS check is deliberately unauthenticated and builder-external in
+meaning: it fetches the public tag URLs into `/srv/oslab-public-verify`, proves
+the served checksum manifest is byte-identical to the packaged manifest, and
+then runs the same 14-file validator. An interrupted large asset resumes; a
+completed hash mismatch is deleted so the next attempt starts from trustworthy
+state. This distinguishes transport progress from verified progress.
+
 Upload is a resumable state machine too. For each local asset $f$, the uploader
 compares GitHub's reported digest $G[f]$ with the locally verified digest $L[f]$:
 

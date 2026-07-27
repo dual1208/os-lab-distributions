@@ -40,6 +40,9 @@ New kernel developers can follow the staged, failure-informed course in
 - `scripts/upload-lfs-release.ps1` resumes the exact draft-release upload at
   asset granularity and accepts an existing asset only when GitHub reports the
   same SHA-256 digest as the locally verified file.
+- `scripts/verify-lfs-public-release.sh` performs a resumable unauthenticated
+  fresh download of all published assets and reruns the complete validator;
+  `scripts/run-lfs-public-verification.sh` records its terminal marker.
 - `UPSTREAMS.tsv` maps every preserved fork and build input to its canonical
   upstream, immutable release reference, and source commit.
 - `reference/` contains offline documentation kept out of Git; its source and
