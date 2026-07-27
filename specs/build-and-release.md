@@ -128,6 +128,10 @@ temporary paid builder when publishing and verification are complete.
   SFTP transfers run concurrently; a retry never treats a partial file as
   complete merely because it exists. Incomplete full-size `part00` assets are
   scheduled before shorter remainder parts to avoid an idle transfer slot.
+- LFS assets upload only to the exact draft prerelease after the local download
+  marker is `EXIT=0`. Retries skip an existing asset only when GitHub's reported
+  SHA-256 digest matches the local file; a same-name mismatch is replaced, and
+  publication requires the exact 14-asset set with matching digests.
 - Every GitHub release asset is smaller than 2 GiB. Each larger rootfs archive
   is losslessly split into 1,900 MiB parts; the release records both the part
   hashes and the SHA-256 of the reassembled archive, and validates

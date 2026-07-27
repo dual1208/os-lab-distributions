@@ -37,6 +37,9 @@ New kernel developers can follow the staged, failure-informed course in
   named disposable builder with two bounded, resume-capable transfers and
   emits a local success marker only after all downloaded SHA-256 values match;
   run it with PowerShell 7 (`pwsh`), not legacy Windows PowerShell.
+- `scripts/upload-lfs-release.ps1` resumes the exact draft-release upload at
+  asset granularity and accepts an existing asset only when GitHub reports the
+  same SHA-256 digest as the locally verified file.
 - `UPSTREAMS.tsv` maps every preserved fork and build input to its canonical
   upstream, immutable release reference, and source commit.
 - `reference/` contains offline documentation kept out of Git; its source and
@@ -49,3 +52,6 @@ The scripts require a disposable Ubuntu builder. They refuse to use `/`,
 system, not an automatic disk installer. Review hardware support and customize
 partitioning, regenerate the included generic initramfs, configure networking
 and accounts, and install a bootloader before using it on a physical computer.
+
+Release-specific warnings, verification, and reassembly commands are in
+[`RELEASE-NOTES-lfs.md`](RELEASE-NOTES-lfs.md).

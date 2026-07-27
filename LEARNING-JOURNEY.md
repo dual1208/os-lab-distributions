@@ -726,6 +726,18 @@ sha256sum --check SHA256SUMS
 This is not redundant. It tests the release boundary, asset selection, naming,
 and bytes served to future users.
 
+Upload is a resumable state machine too. For each local asset $f$, the uploader
+compares GitHub's reported digest $G[f]$ with the locally verified digest $L[f]$:
+
+$$
+G[f]=L[f]\Rightarrow\text{skip},\qquad
+G[f]\ne L[f]\Rightarrow\text{replace and recheck}.
+$$
+
+Only the exact 14-asset set on the draft prerelease may advance. This makes a
+task-host restart cheap: already correct assets are evidence, not work to repeat.
+The draft remains unpublished until every digest passes.
+
 ### Failure story: the transport has a smaller unit than the artifact
 
 The two LFS rootfs archives are each larger than GitHub's 2 GiB per-asset
