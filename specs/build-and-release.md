@@ -124,7 +124,9 @@ temporary paid builder when publishing and verification are complete.
 - The local staging download begins only after the remote packaging marker is
   `EXIT=0`, selects the disposable builder by exact provider ID and name, and
   writes its own durable exit marker only after every staged asset matches
-  `SHA256SUMS`.
+  `SHA256SUMS`. Interrupted files resume in place and at most four exact-file
+  SFTP transfers run concurrently; a retry never treats a partial file as
+  complete merely because it exists.
 - Every GitHub release asset is smaller than 2 GiB. Each larger rootfs archive
   is losslessly split into 1,900 MiB parts; the release records both the part
   hashes and the SHA-256 of the reassembled archive, and validates

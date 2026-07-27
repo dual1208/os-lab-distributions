@@ -733,6 +733,14 @@ and hashes all 13 manifest entries before writing `EXIT=0`. Keeping the marker
 outside the payload preserves the exact 14-file release set. Transport errors
 are deliberately summarized without recording the temporary cloud address.
 
+The first single-stream copy made progress but far too slowly for a practical
+runbook. The safe optimization was not to discard its partial data: SFTP's
+`reget` resumes each exact filename, while a four-transfer bound adds concurrency
+without an unbounded connection fan-out. Existence is never a completion test;
+an existing file is skipped only when its SHA-256 already matches. In symbols,
+the resume set is $R=\{f\mid f\notin D\lor H(D[f])\ne M[f]\}$, and success still
+requires $R=\varnothing$ after every transfer and final hash pass.
+
 ## Chapter 13: reproduce the full OS Lab build
 
 Do this only after the smaller labs, on a disposable Ubuntu builder. Review all
