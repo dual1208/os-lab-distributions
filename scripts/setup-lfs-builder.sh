@@ -36,7 +36,7 @@ install -d -m 0755 /srv
 install -d -o "${BUILD_USER}" -g "${BUILD_USER}" -m 0755 \
   "${BUILD_ROOT}" "${SOURCE_ARCHIVE}" "${TOOLING_ROOT}"
 if [[ ! -f ${BUILD_IMAGE} ]]; then
-  truncate -s 50G "${BUILD_IMAGE}"
+  truncate -s 64G "${BUILD_IMAGE}"
   mkfs.ext4 -F -L oslab-root "${BUILD_IMAGE}"
 fi
 

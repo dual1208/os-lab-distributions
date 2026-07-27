@@ -55,6 +55,7 @@ build_autotools() {
   make -j4
   make install
   popd >/dev/null
+  rm -rf -- "${directory}"
 }
 
 build_autotools libarchive-3.8.5.tar.xz libarchive-3.8.5 \
@@ -76,24 +77,37 @@ meson setup systemd-261.2/build systemd-261.2 \
   -Dukify=disabled -Ddocdir=/usr/share/doc/systemd-261.2
 ninja -C systemd-261.2/build -j4
 ninja -C systemd-261.2/build install
+rm -rf systemd-261.2
 
-rm -rf linux-7.1.5
-tar -xf linux-7.1.5.tar.xz
-pushd linux-7.1.5 >/dev/null
-cp ../kernel-bootstrap.config .config
-scripts/config --set-str LOCALVERSION '-oslab'
-scripts/config --set-str SYSTEM_TRUSTED_KEYS ''
-scripts/config --set-str SYSTEM_REVOCATION_KEYS ''
-scripts/config --disable MODULE_SIG_ALL
-scripts/config --disable DEBUG_INFO_BTF
-scripts/config --disable GCC_PLUGINS
-make olddefconfig </dev/null
-make -j4
-make modules_install
-cp arch/x86/boot/bzImage /boot/vmlinuz-7.1.5-oslab
-cp System.map /boot/System.map-7.1.5-oslab
-cp .config /boot/config-7.1.5-oslab
-popd >/dev/null
+if [[ ! -s /boot/vmlinuz-7.1.5-oslab ]] || \
+   [[ ! -s /boot/config-7.1.5-oslab ]] || \
+   [[ ! -s /usr/lib/modules/7.1.5-oslab/modules.dep ]]; then
+  rm -rf linux-7.1.5
+  tar -xf linux-7.1.5.tar.xz
+  pushd linux-7.1.5 >/dev/null
+  cp ../kernel-bootstrap.config .config
+  scripts/config --set-str LOCALVERSION '-oslab'
+  scripts/config --set-str SYSTEM_TRUSTED_KEYS ''
+  scripts/config --set-str SYSTEM_REVOCATION_KEYS ''
+  scripts/config --disable MODULE_SIG_ALL
+  scripts/config --disable DEBUG_INFO_BTF
+  scripts/config --disable GCC_PLUGINS
+  make olddefconfig </dev/null
+  make -j4
+  make modules_install
+  cp arch/x86/boot/bzImage /boot/vmlinuz-7.1.5-oslab
+  cp System.map /boot/System.map-7.1.5-oslab
+  cp .config /boot/config-7.1.5-oslab
+  popd >/dev/null
+else
+  echo 'reusing validated Linux 7.1.5 kernel outputs'
+fi
+test -s /boot/vmlinuz-7.1.5-oslab
+test -s /boot/config-7.1.5-oslab
+test -s /usr/lib/modules/7.1.5-oslab/modules.dep
+rm -rf linux-7.1.5 /usr/lib/modules/7.1.3-oslab
+rm -f /boot/vmlinuz-7.1.3-lfs-r13.0-160-systemd \
+  /boot/System.map-7.1.3 /boot/config-7.1.3
 
 rm -rf linux-firmware-20260622
 tar -xf linux-firmware-20260622.tar.xz
@@ -101,6 +115,7 @@ install -d -m 0755 /usr/lib/firmware
 cp -a linux-firmware-20260622/. /usr/lib/firmware/
 rm -rf /usr/lib/firmware/.github /usr/lib/firmware/.gitlab-ci.yml
 rm -f /usr/lib/firmware/Makefile
+rm -rf linux-firmware-20260622
 
 rm -rf dracut-111
 tar -xf dracut-111.tar.gz
@@ -109,6 +124,7 @@ pushd dracut-111 >/dev/null
 make -j4
 make install
 popd >/dev/null
+rm -rf dracut-111
 dracut --force --no-hostonly /boot/initramfs-7.1.5-oslab.img 7.1.5-oslab
 
 rm -rf pacman-7.1.0 pacman-pkgroot

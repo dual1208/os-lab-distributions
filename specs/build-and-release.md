@@ -31,7 +31,10 @@ temporary paid builder when publishing and verification are complete.
    systemd to 261.2, installs dracut 111, and includes the official
    linux-firmware 20260622 snapshot. The finalizer's bootstrap HTTP client must
    use the libraries present in the LFS base and must not auto-require the
-   optional libpsl dependency.
+   optional libpsl dependency. The disposable LFS filesystem image must provide
+   at least 64 GiB, and the finalizer must reclaim exact transient source trees
+   plus the superseded bootstrap kernel only after the final kernel image,
+   configuration, and module tree are present.
    Variants:
    - `zen5`: MECHREVO XINGYAO, AMD Ryzen AI 9 H 365, 32 GB RAM.
    - `skylake`: ThinkPad P73, Intel Core i7-9750H, 16 GB RAM, Quadro T2000.
