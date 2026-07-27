@@ -891,3 +891,35 @@ The most transferable lesson from this journey is that kernel development is
 not merely compilation. It is controlled experimentation: make one explicit
 decision, preserve the evidence, test at the correct boundary, and keep a known
 way back.
+
+## Epilogue: the evidence ledger
+
+The completed journey produced two public prereleases:
+
+- [OpenWrt 25.12.5 for the Linksys E8450 UBI layout](https://github.com/dual1208/openwrt/releases/tag/v25.12.5-e8450-ubi-20260726)
+- [OS Lab 2026.07 LFS bootstrap root filesystems](https://github.com/dual1208/os-lab-distributions/releases/tag/oslab-2026.07)
+
+The OpenWrt fresh download contained 14 assets with 13 manifest entries; every
+entry matched. The LFS fresh public download contained the exact 14 assets,
+matched the packaged manifest byte-for-byte, reconstructed both rootfs streams,
+and passed SHA-256, zstd, tar-content, profile, kernel-configuration, provenance,
+and sanitization checks.
+
+Let $P_o,P_l$ mean “public,” $V_o,V_l$ mean “fresh-download verified,” and
+$I_b$ mean “the disposable builder exists in normalized inventory.” Cleanup was
+authorized only when
+
+$$
+P_o\land V_o\land P_l\land V_l=\mathrm{true},
+$$
+
+and completion required the stronger terminal condition
+
+$$
+P_o\land V_o\land P_l\land V_l\land\neg I_b.
+$$
+
+The delete API returned before the first inventory read converged; a following
+bounded normalized read proved the exact builder absent while the unrelated
+machine set was unchanged. This last lesson matters: command acceptance is an
+event, but verified external state is the postcondition.

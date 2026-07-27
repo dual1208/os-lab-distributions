@@ -17,3 +17,15 @@
   completion.
 - Verification: two SFTP workers resumed existing parts inside the named
   `oslab-transfer` session; the final gate still hashes every manifest entry.
+
+## 2026-07-27 — Cloud deletion needs an observed postcondition
+
+- Symptom: the exact droplet delete command succeeded, but the first immediate
+  normalized inventory read still contained the target.
+- Root cause: control-plane deletion and inventory convergence are separate
+  events.
+- Decisive evidence: the following bounded normalized read showed the exact ID
+  and name absent while the unrelated machine set was unchanged.
+- Reusable lesson: never equate an accepted destructive request with completed
+  cleanup; verify target absence and preservation of out-of-scope resources.
+- Verification: `osforge` was absent and one unrelated machine remained.

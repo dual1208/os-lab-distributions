@@ -58,3 +58,11 @@ and accounts, and install a bootloader before using it on a physical computer.
 
 Release-specific warnings, verification, and reassembly commands are in
 [`RELEASE-NOTES-lfs.md`](RELEASE-NOTES-lfs.md).
+
+## Published learning artifacts
+
+- [OpenWrt 25.12.5 for the E8450 UBI layout](https://github.com/dual1208/openwrt/releases/tag/v25.12.5-e8450-ubi-20260726)
+- [OS Lab 2026.07 LFS bootstrap root filesystems](https://github.com/dual1208/os-lab-distributions/releases/tag/oslab-2026.07)
+
+Both are prereleases. Their public assets were downloaded into fresh
+directories and checksum-verified before the disposable builder was destroyed.
