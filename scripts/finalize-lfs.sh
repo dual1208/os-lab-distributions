@@ -16,6 +16,8 @@ readonly DRACUT_VERSION=111
 readonly DRACUT_COMMIT=b3b4f7ef914b84964a56500cfec83f21dc513e6a
 readonly LINUX_FIRMWARE_VERSION=20260622
 readonly LINUX_FIRMWARE_SOURCE_SHA256=2b9d8a358e76eb766588609135e53fa548b902c551daae33ee32f26f25e60dbb
+readonly CPIO_VERSION=2.15
+readonly CPIO_SOURCE_SHA256=937610b97c329a1ec9268553fb780037bcfff0dcffe9725ebc4fd9c1aa9075db
 
 if [[ ${EUID} -ne 0 ]]; then
   echo 'finalize-lfs.sh must run as root' >&2
@@ -117,6 +119,8 @@ rm -rf /usr/lib/firmware/.github /usr/lib/firmware/.gitlab-ci.yml
 rm -f /usr/lib/firmware/Makefile
 rm -rf linux-firmware-20260622
 
+build_autotools cpio-2.15.tar.bz2 cpio-2.15 --disable-nls
+
 rm -rf dracut-111
 tar -xf dracut-111.tar.gz
 pushd dracut-111 >/dev/null
@@ -125,7 +129,11 @@ make -j4
 make install
 popd >/dev/null
 rm -rf dracut-111
-dracut --force --no-hostonly /boot/initramfs-7.1.5-oslab.img 7.1.5-oslab
+dracut --force --no-hostonly \
+  --omit 'systemd systemd-initrd systemd-journald dracut-systemd systemd-sysusers' \
+  /boot/initramfs-7.1.5-oslab.img 7.1.5-oslab
+test -s /boot/initramfs-7.1.5-oslab.img
+lsinitrd /boot/initramfs-7.1.5-oslab.img >/dev/null
 
 rm -rf pacman-7.1.0 pacman-pkgroot
 tar -xf pacman-7.1.0.tar.xz
@@ -247,6 +255,11 @@ download_source \
 download_source \
   https://www.kernel.org/pub/linux/kernel/firmware/linux-firmware-20260622.tar.xz \
   linux-firmware-20260622.tar.xz
+download_source https://ftp.gnu.org/gnu/cpio/cpio-2.15.tar.bz2 \
+  cpio-2.15.tar.bz2
+download_source https://ftp.gnu.org/gnu/cpio/cpio-2.15.tar.bz2.sig \
+  cpio-2.15.tar.bz2.sig
+download_source https://ftp.gnu.org/gnu/gnu-keyring.gpg gnu-keyring.gpg
 
 if [[ ! -d ${SOURCE_ROOT}/pacman.git ]]; then
   git clone --mirror https://gitlab.archlinux.org/pacman/pacman.git \
@@ -264,10 +277,15 @@ printf '%s  %s\n' "${LINUX_SOURCE_SHA256}" linux-7.1.5.tar.xz | \
 printf '%s  %s\n' "${LINUX_FIRMWARE_SOURCE_SHA256}" \
   linux-firmware-20260622.tar.xz | \
   (cd "${BUILD_ROOT}/sources/oslab-extra" && sha256sum --check --strict)
+printf '%s  %s\n' "${CPIO_SOURCE_SHA256}" cpio-2.15.tar.bz2 | \
+  (cd "${BUILD_ROOT}/sources/oslab-extra" && sha256sum --check --strict)
+gpgv --keyring "${BUILD_ROOT}/sources/oslab-extra/gnu-keyring.gpg" \
+  "${BUILD_ROOT}/sources/oslab-extra/cpio-2.15.tar.bz2.sig" \
+  "${BUILD_ROOT}/sources/oslab-extra/cpio-2.15.tar.bz2"
 (cd "${BUILD_ROOT}/sources/oslab-extra" && \
   sha256sum libarchive-3.8.5.tar.xz curl-8.18.0.tar.xz \
     systemd-261.2.tar.gz linux-7.1.5.tar.xz dracut-111.tar.gz \
-    linux-firmware-20260622.tar.xz pacman-7.1.0.tar.xz \
+    linux-firmware-20260622.tar.xz cpio-2.15.tar.bz2 pacman-7.1.0.tar.xz \
     > SOURCE-SHA256SUMS)
 
 chroot "${BUILD_ROOT}" /usr/bin/env -i \
@@ -342,6 +360,8 @@ PACMAN_COMMIT=${PACMAN_COMMIT}
 DRACUT_VERSION=${DRACUT_VERSION}
 DRACUT_COMMIT=${DRACUT_COMMIT}
 LINUX_FIRMWARE_VERSION=${LINUX_FIRMWARE_VERSION}
+CPIO_VERSION=${CPIO_VERSION}
+CPIO_SIGNING_KEY=325F650C4C2B6AD58807327A3602B07F55D0C732
 COMMON_ISA_BASELINE=x86-64-v3
 ZEN5_TUNE=znver5
 SKYLAKE_TUNE=skylake
@@ -359,6 +379,7 @@ SYSTEMD_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/systemd-261
 LINUX_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/linux-7.1.5.tar.xz" | cut -d' ' -f1)
 DRACUT_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/dracut-111.tar.gz" | cut -d' ' -f1)
 LINUX_FIRMWARE_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/linux-firmware-20260622.tar.xz" | cut -d' ' -f1)
+CPIO_SOURCE_SHA256=$(sha256sum "${BUILD_ROOT}/sources/oslab-extra/cpio-2.15.tar.bz2" | cut -d' ' -f1)
 LFS_SOURCE_HASH_MANIFEST_SHA256=$(sha256sum "${TOOLING_ROOT}/LFS-SOURCE-SHA256SUMS" | cut -d' ' -f1)
 EOF
 

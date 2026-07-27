@@ -572,6 +572,23 @@ The lesson is not “disable every dependency.” It is:
 3. If optional, disable it explicitly.
 4. Record the tradeoff and rerun only the affected stage.
 
+### Failure story: initramfs is its own userspace
+
+After the kernel and modules succeeded, dracut still could not create an
+initramfs. GNU cpio was absent, and dracut's automatically selected systemd
+modules depended on `systemd-sysusers`, which this minimal rootfs intentionally
+did not install. The repair added pinned GNU cpio and explicitly selected
+dracut's traditional non-systemd initramfs path.
+
+This does not change PID 1 in the installed rootfs: the final system still uses
+systemd after the real root is mounted. Early userspace and the long-lived
+rootfs are separate dependency environments. Formally, adding a userspace
+component to the rootfs does not imply that it belongs to the early-boot set
+$B=Y\cup(M\cap I)$ or that all of its companion tools exist in the initramfs.
+
+The reusable test is twofold: the initramfs file must be nonempty, and
+`lsinitrd` must be able to enumerate it before packaging continues.
+
 ## Chapter 10: make failure resumable
 
 Long builds should run as named, logged jobs and emit a durable terminal record.

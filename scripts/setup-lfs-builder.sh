@@ -28,7 +28,7 @@ id "${BUILD_USER}" >/dev/null 2>&1 || {
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
-  bc bison build-essential cpio docbook-xml docbook-xsl flex gawk git \
+  bc bison build-essential cpio docbook-xml docbook-xsl flex gawk git gpgv \
   libssl-dev libxml2-utils libxslt1-dev meson ninja-build pkg-config \
   python3 qemu-system-x86 rsync sudo texinfo tmux wget xsltproc xz-utils zstd
 

@@ -34,7 +34,10 @@ temporary paid builder when publishing and verification are complete.
    optional libpsl dependency. The disposable LFS filesystem image must provide
    at least 64 GiB, and the finalizer must reclaim exact transient source trees
    plus the superseded bootstrap kernel only after the final kernel image,
-   configuration, and module tree are present.
+   configuration, and module tree are present. GNU cpio 2.15 supplies dracut's
+   archive backend; because this bootstrap omits systemd-sysusers, the generic
+   initramfs must explicitly use dracut's non-systemd path and pass an archive
+   integrity listing before packaging.
    Variants:
    - `zen5`: MECHREVO XINGYAO, AMD Ryzen AI 9 H 365, 32 GB RAM.
    - `skylake`: ThinkPad P73, Intel Core i7-9750H, 16 GB RAM, Quadro T2000.

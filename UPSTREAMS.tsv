@@ -17,3 +17,4 @@ LFS book	https://git.linuxfromscratch.org/lfs.git	https://git.linuxfromscratch.o
 jhalfs	https://git.linuxfromscratch.org/jhalfs.git	https://git.linuxfromscratch.org/jhalfs.git	pinned commit	476870cd636d37a80629decbcfd8743563261a67	base-system build orchestrator
 dracut	https://github.com/dracut-ng/dracut	https://github.com/dracut-ng/dracut	111	b3b4f7ef914b84964a56500cfec83f21dc513e6a	final PC initramfs tooling
 linux-firmware	https://www.kernel.org/pub/linux/kernel/firmware/	https://gitlab.com/kernel-firmware/linux-firmware	20260622		final PC firmware archive; pinned by signed-manifest SHA-256
+GNU cpio	https://ftp.gnu.org/gnu/cpio/cpio-2.15.tar.bz2	https://www.gnu.org/software/cpio/	2.15		final PC initramfs archive backend
