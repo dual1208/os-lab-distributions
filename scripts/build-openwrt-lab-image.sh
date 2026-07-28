@@ -21,6 +21,8 @@ printf 'START=%s\n' "$(date -u +%FT%TZ)" > "${LOG}"
 finish() {
   local rc=$?
   if [[ ! -f ${EXIT_FILE} ]]; then
+    # Fail closed when a whole systemd cgroup is terminated by the OOM killer.
+    (( rc != 0 )) || rc=1
     printf 'EXIT=%s\nEND=%s\n' "${rc}" "$(date -u +%FT%TZ)" | tee "${EXIT_FILE}" >> "${LOG}"
   fi
 }
@@ -66,11 +68,11 @@ grep -qx 'CONFIG_PACKAGE_dae=y' .config
 grep -q '^GO_VERSION_PATCH:=4$' feeds/packages/lang/golang/golang1.26/Makefile
 make download -j4 >> "${LOG}" 2>&1
 find dl -type f -not -size +0c -delete
-if ! make -j4 tools/compile >> "${LOG}" 2>&1; then
+if ! make -j2 tools/compile >> "${LOG}" 2>&1; then
   echo 'parallel tools pass failed; isolating the known dwarves gate' >> "${LOG}"
   make tools/dwarves/compile -j1 V=s >> "${LOG}" 2>&1
 fi
-make -j4 tools/compile >> "${LOG}" 2>&1
+make -j2 tools/compile >> "${LOG}" 2>&1
 make -j4 world >> "${LOG}" 2>&1
 
 rm -rf "${ARTIFACT_ROOT:?}"/*

@@ -31,6 +31,9 @@ printf 'START=%s\n' "$(date -u +%FT%TZ)" > "${LOG}"
 finish() {
   local rc=$?
   if [[ ! -f ${EXIT_FILE} ]]; then
+    # A SIGTERM delivered to the whole systemd cgroup after an OOM can make an
+    # EXIT trap observe zero even though the build never reached publication.
+    (( rc != 0 )) || rc=1
     printf 'EXIT=%s\nEND=%s\n' "${rc}" "$(date -u +%FT%TZ)" | tee "${EXIT_FILE}" >> "${LOG}"
   fi
 }
@@ -81,11 +84,11 @@ grep -q '^PKG_HASH:=4f668a32fbfc1132e6a881fb968c2f1dada631492a339211735fbb255a42
 
 make download -j4 >> "${LOG}" 2>&1
 find dl -type f -not -size +0c -delete
-if ! make -j4 tools/compile >> "${LOG}" 2>&1; then
+if ! make -j2 tools/compile >> "${LOG}" 2>&1; then
   echo 'parallel tools pass failed; isolating the known dwarves gate' >> "${LOG}"
   make tools/dwarves/compile -j1 V=s >> "${LOG}" 2>&1
 fi
-make -j4 tools/compile >> "${LOG}" 2>&1
+make -j2 tools/compile >> "${LOG}" 2>&1
 make -j4 world >> "${LOG}" 2>&1
 
 rm -rf "${ARTIFACT_ROOT:?}"/*

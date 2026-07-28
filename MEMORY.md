@@ -44,3 +44,20 @@
   world compilation. Do not serialize the entire firmware build.
 - Verification: both incremental jobs passed the former dwarves failure point
   and entered the LLVM BPF host-tool build.
+
+## 2026-07-28 — Bound LLVM host-tool memory, and distrust trap-only success
+
+- Symptom: an 8 GiB builder's LLVM/BPF tools build ended with systemd
+  `Result=oom-kill`, but the Bash EXIT trap wrote `EXIT=0` and no artifacts
+  existed.
+- Root cause: the OpenWrt jobserver admitted six large `cc1plus` processes whose
+  combined resident memory exhausted the swapless host; cgroup termination also
+  let the trap observe a misleading zero status.
+- Decisive evidence: the kernel OOM record showed one compiler at roughly
+  1.7 GiB RSS, systemd recorded `oom-kill`, and the artifact directory was
+  empty.
+- Reusable lesson: constrain memory-heavy host tools separately from the main
+  build and define success as an explicit end-of-pipeline marker plus artifact
+  checks, never as a trap's status alone.
+- Verification: the scripts now use two jobs for `tools/compile`, retain four
+  for `world`, and coerce an unexpected zero-status EXIT trap to failure.

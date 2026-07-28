@@ -55,6 +55,14 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   parallel tools pass to populate prerequisites. If that pass fails, serialize
   only dwarves, rerun the complete parallel tools gate, and only then enter
   `make -j4 world`. Retain the diagnostic log.
+- An independent clean retry proved that the LLVM/BPF host-tool portion can
+  expand to six simultaneous `cc1plus` processes and exhaust an 8 GiB Basic
+  Droplet with no swap. The kernel OOM record showed individual compiler
+  processes using up to about 1.7 GiB resident memory. Bound `tools/compile` to
+  two jobs, retain four jobs for downloads and the later `world` phase, and
+  resume the preserved incremental tree after an OOM rather than rebuilding.
+  A missing success marker must fail closed: an abnormal shell termination may
+  never be reported as `EXIT=0`, even if Bash presents zero to an EXIT trap.
 - QEMU does not model the Linksys E8450's MediaTek MT7622 SoC, switch, NAND/UBI
   layout, radios, or boot chain. The E8450 firmware therefore cannot be
   honestly booted as a virtual E8450. The interactive lab will run a separate
@@ -159,6 +167,9 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   command. A powered-off Droplet remains billable and is not cleanup.
 - Build parallelism is bounded to the four available vCPUs; retain enough disk
   space for source, downloads, build trees, lab images, and release staging.
+- Memory-heavy host tools are additionally bounded to two concurrent jobs on
+  the 8 GiB plans; successful completion, not nominal CPU occupancy, is the
+  optimization target.
 
 ## Acceptance checks
 
