@@ -11,6 +11,13 @@ case ${MODE} in
   24-hour) duration=86400 ;;
   *) echo 'usage: soak-a11-b22.sh [REPO_ROOT] [one-hour|24-hour]' >&2; exit 2 ;;
 esac
+if [[ ${MODE} == 24-hour ]]; then
+  while systemctl is-active --quiet campus-link-accelerated-fault.service && \
+        [[ ! -f /run/campus-link/accelerated-fault-soak.result ]]; do
+    sleep 60
+  done
+  [[ -f /run/campus-link/accelerated-fault-soak.result ]]
+fi
 rm -f "${RESULT}"
 
 ip netns exec oslab-a python3 "${PROBE}" serve --bind 10.81.0.11 --tcp-port "${PORT}" --udp-port 18091 >/dev/null 2>&1 &
