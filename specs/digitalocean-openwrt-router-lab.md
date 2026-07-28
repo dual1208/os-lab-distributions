@@ -124,6 +124,9 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   sanitized verification updates at meaningful recovery points.
 - Publish large binaries as a new GitHub prerelease rather than Git blobs.
   Release assets must have SHA-256 digests and provenance.
+- Preserve GitHub forks of the official dae and Go repositories under the
+  user's account, while continuing to build only the immutable release inputs
+  and hashes named by this contract.
 
 ## Invariants
 

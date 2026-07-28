@@ -66,3 +66,16 @@ Release-specific warnings, verification, and reassembly commands are in
 
 Both are prereleases. Their public assets were downloaded into fresh
 directories and checksum-verified before the disposable builder was destroyed.
+
+## DigitalOcean router lab
+
+The current extension builds a dae-enabled E8450 UBI bundle with Go 1.26.4 and
+runs two OpenWrt x86-64 guests under QEMU/KVM for safe routing experiments. The
+cloud and build contract is
+[`specs/digitalocean-openwrt-router-lab.md`](specs/digitalocean-openwrt-router-lab.md).
+The hands-on course is [`docs/TWO-ROUTER-LABS.md`](docs/TWO-ROUTER-LABS.md).
+
+The virtual guests share the exact OpenWrt source commit and user-space profile
+with the physical build. They do not emulate or validate the E8450's MediaTek
+SoC, NAND/UBI layout, switch, Wi-Fi, or bootloader. LuCI is loopback-only and is
+reached from Windows through `scripts/Start-OpenWrtLabTunnel.ps1`.
