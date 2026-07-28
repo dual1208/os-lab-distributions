@@ -41,6 +41,8 @@ for script in topology configure-tun smoke-external restore-offline; do
   install -m 0755 "${REPO_ROOT}/campus-link/scripts/${script}.sh" "/usr/local/libexec/campus-link-${script}"
 done
 install -m 0755 "${REPO_ROOT}/campus-link/scripts/qualify-a11-b22.sh" /usr/local/libexec/campus-link-qualify-a11-b22
+install -m 0755 "${REPO_ROOT}/campus-link/scripts/test-edge-recovery.sh" /usr/local/libexec/campus-link-test-edge-recovery
+install -m 0755 "${REPO_ROOT}/campus-link/scripts/test-netem.sh" /usr/local/libexec/campus-link-test-netem
 install -m 0755 "${REPO_ROOT}/campus-link/scripts/rollback-edge.sh" /usr/local/libexec/campus-link-rollback-edge
 install -m 0755 "${REPO_ROOT}/lab/openwrt-lab-topology" /usr/local/libexec/openwrt-lab-topology
 install -m 0755 "${REPO_ROOT}/lab/openwrt-lab-console-config" /usr/local/libexec/openwrt-lab-console-config

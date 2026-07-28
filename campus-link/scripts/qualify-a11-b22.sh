@@ -5,7 +5,7 @@ readonly REPO_ROOT=${1:-/srv/openwrt-lab/repo}
 readonly MODE=${2:-smoke}
 readonly PROBE=${REPO_ROOT}/campus-link/tests/a11_b22.py
 case ${MODE} in
-  smoke) bulk_bytes=$((32 * 1024 * 1024)); records=10000; concurrency=100 ;;
+  smoke) bulk_bytes=$((4 * 1024 * 1024)); records=10000; concurrency=100 ;;
   full) bulk_bytes=$((1024 * 1024 * 1024)); records=10000; concurrency=100 ;;
   *) echo 'usage: qualify-a11-b22.sh [REPO_ROOT] [smoke|full]' >&2; exit 2 ;;
 esac

@@ -202,11 +202,20 @@ def client(args):
         args.udp_wait_seconds,
     )
     print(f"PHASE udp=measured seconds={time.monotonic() - started:.3f}", flush=True)
+    if args.udp_packets and udp_received / args.udp_packets < args.min_udp_ratio:
+        raise AssertionError(
+            f"UDP delivery ratio {udp_received}/{args.udp_packets} is below {args.min_udp_ratio:.3f}"
+        )
     print(
         f"PASS source={args.source} destination={args.destination} records={args.records} "
         f"concurrency={args.concurrency} bulk_bytes={args.bulk_bytes} "
         f"udp_received={udp_received}/{args.udp_packets}"
     )
+
+
+def health(args):
+    one_flow(args.source, args.destination, args.tcp_port, 9_000_000)
+    print("HEALTH=pass")
 
 
 def parser():
@@ -230,7 +239,13 @@ def parser():
     probe.add_argument("--udp-packets", type=int, default=1000)
     probe.add_argument("--udp-interval-ms", type=float, default=10)
     probe.add_argument("--udp-wait-seconds", type=float, default=3)
+    probe.add_argument("--min-udp-ratio", type=float, default=0.9)
     probe.set_defaults(function=client)
+    check = sub.add_parser("health")
+    check.add_argument("--source", required=True)
+    check.add_argument("--destination", required=True)
+    check.add_argument("--tcp-port", type=int, default=18080)
+    check.set_defaults(function=health)
     return root
 
 
