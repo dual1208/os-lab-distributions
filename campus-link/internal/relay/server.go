@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/binding"
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/config"
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/control"
+	"github.com/dual1208/os-lab-distributions/campus-link/internal/rendezvous"
 )
 
 type leg struct {
@@ -43,6 +45,7 @@ type Server struct {
 	nextOwner   uint64
 	established bool
 	udp         *net.UDPConn
+	planner     *rendezvous.Planner
 }
 
 const maxOuterDatagramSize = 2048
@@ -64,7 +67,10 @@ func New(cfg config.Relay) (*Server, error) {
 	if cfg.Circuit == "" || cfg.Prefixes["site-a"] == "" || cfg.Prefixes["site-b"] == "" {
 		return nil, errors.New("relay requires one circuit and fixed site-a/site-b prefixes")
 	}
-	return &Server{cfg: cfg, legs: map[string]*leg{"site-a": {}, "site-b": {}}}, nil
+	return &Server{
+		cfg: cfg, legs: map[string]*leg{"site-a": {}, "site-b": {}},
+		planner: rendezvous.NewPlanner(nil, cfg.Circuit),
+	}, nil
 }
 
 func (s *Server) Run(ctx context.Context) error {
@@ -164,7 +170,11 @@ func (s *Server) handleControl(raw net.Conn) {
 			break
 		}
 		_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if err := enc.Encode(control.HeartbeatAck{Type: "heartbeat-ack", Sequence: hb.Sequence}); err != nil {
+		var plan *control.RendezvousPlan
+		if candidate, ok := s.planner.PlanFor(identity, owner); ok {
+			plan = &candidate
+		}
+		if err := enc.Encode(control.HeartbeatAck{Type: "heartbeat-ack", Sequence: hb.Sequence, Plan: plan}); err != nil {
 			break
 		}
 	}
@@ -222,12 +232,14 @@ func (s *Server) spliceUDP(ctx context.Context) error {
 
 func (s *Server) activateLegLocked(site, generation string, token []byte, conn net.Conn) uint64 {
 	if s.legs[site].online {
+		s.planner.Invalidate(site, s.legs[site].owner)
 		_ = s.legs[site].control.Close()
 		*s.legs[site] = leg{}
 	}
 	if s.established {
 		peer := otherSite(site)
 		if s.legs[peer].online {
+			s.planner.Invalidate(peer, s.legs[peer].owner)
 			_ = s.legs[peer].control.Close()
 			*s.legs[peer] = leg{}
 		}
@@ -242,6 +254,7 @@ func (s *Server) activateLegLocked(site, generation string, token []byte, conn n
 		generation: generation,
 		online:     true,
 	}
+	_ = s.planner.Register(site, generation, owner)
 	if s.legs["site-a"].online && s.legs["site-b"].online {
 		s.established = true
 	}
@@ -254,9 +267,11 @@ func (s *Server) clearLegLocked(site string, owner uint64) bool {
 		return false
 	}
 	*l = leg{}
+	s.planner.Invalidate(site, owner)
 	if s.established {
 		peer := otherSite(site)
 		if s.legs[peer].online {
+			s.planner.Invalidate(peer, s.legs[peer].owner)
 			_ = s.legs[peer].control.Close()
 			*s.legs[peer] = leg{}
 		}
@@ -295,6 +310,9 @@ func (s *Server) handleBinding(packet []byte, src *net.UDPAddr) bool {
 				l.bound = true
 				l.pendingAddr = nil
 				l.pendingChallenge = nil
+				if ip, ok := netip.AddrFromSlice(src.IP); ok {
+					_ = s.planner.Observe(site, l.owner, netip.AddrPortFrom(ip.Unmap(), uint16(src.Port)), time.Now())
+				}
 				log.Printf("UDP tuple authenticated: site=%s", site)
 				if s.legs["site-a"].bound && s.legs["site-b"].bound {
 					_, _ = s.udp.WriteToUDP([]byte(binding.ReadyMagic), s.legs["site-a"].addr)

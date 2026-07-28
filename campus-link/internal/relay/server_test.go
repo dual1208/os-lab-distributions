@@ -2,7 +2,9 @@ package relay
 
 import (
 	"net"
+	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/config"
 )
@@ -62,5 +64,43 @@ func TestEstablishedCircuitInvalidatesBothLegsTogether(t *testing.T) {
 func TestOuterDatagramLimitIsBounded(t *testing.T) {
 	if maxOuterDatagramSize < 1280 || maxOuterDatagramSize > 4096 {
 		t.Fatalf("unexpected outer datagram limit: %d", maxOuterDatagramSize)
+	}
+}
+
+func TestRelayPlannerScopesCandidatesToCurrentOwners(t *testing.T) {
+	s, err := New(config.Relay{Circuit: "c", Prefixes: map[string]string{"site-a": "10.81.0.0/24", "site-b": "10.82.0.0/24"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	aClient, aServer := net.Pipe()
+	defer aClient.Close()
+	defer aServer.Close()
+	bClient, bServer := net.Pipe()
+	defer bClient.Close()
+	defer bServer.Close()
+	s.mu.Lock()
+	aOwner := s.activateLegLocked("site-a", "ga", []byte("a"), aServer)
+	bOwner := s.activateLegLocked("site-b", "gb", []byte("b"), bServer)
+	s.mu.Unlock()
+	now := time.Unix(1_800_000_000, 0)
+	if err := s.planner.Observe("site-a", aOwner, netip.MustParseAddrPort("198.51.100.1:40001"), now); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.planner.Observe("site-b", bOwner, netip.MustParseAddrPort("203.0.113.2:40002"), now); err != nil {
+		t.Fatal(err)
+	}
+	plan, ok := s.planner.PlanFor("site-a", aOwner)
+	if !ok || plan.Circuit != "c" || plan.Generation != "ga" || plan.PeerGeneration != "gb" {
+		t.Fatalf("invalid relay plan: %#v", plan)
+	}
+
+	s.mu.Lock()
+	newOwner := s.activateLegLocked("site-a", "ga2", []byte("new"), aServer)
+	s.mu.Unlock()
+	if newOwner == aOwner {
+		t.Fatal("replacement owner did not advance")
+	}
+	if _, ok := s.planner.PlanFor("site-b", bOwner); ok {
+		t.Fatal("peer retained plan after owner replacement")
 	}
 }

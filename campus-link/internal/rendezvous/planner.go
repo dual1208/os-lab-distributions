@@ -25,20 +25,22 @@ type planLeg struct {
 type Planner struct {
 	mu      sync.Mutex
 	random  io.Reader
+	circuit string
 	legs    map[string]planLeg
 	plans   map[string]control.RendezvousPlan
 	epoch   uint64
 	pairKey string
 }
 
-func NewPlanner(random io.Reader) *Planner {
+func NewPlanner(random io.Reader, circuit string) *Planner {
 	if random == nil {
 		random = rand.Reader
 	}
 	return &Planner{
-		random: random,
-		legs:   map[string]planLeg{"site-a": {}, "site-b": {}},
-		plans:  make(map[string]control.RendezvousPlan),
+		random:  random,
+		circuit: circuit,
+		legs:    map[string]planLeg{"site-a": {}, "site-b": {}},
+		plans:   make(map[string]control.RendezvousPlan),
 	}
 }
 
@@ -127,13 +129,13 @@ func (p *Planner) maybePlanLocked(now time.Time) error {
 	sessionHex, keyHex := hex.EncodeToString(session), hex.EncodeToString(key)
 	p.plans = map[string]control.RendezvousPlan{
 		"site-a": {
-			Type: "rendezvous-plan", Generation: a.generation, PeerGeneration: b.generation,
+			Type: "rendezvous-plan", Circuit: p.circuit, Generation: a.generation, PeerGeneration: b.generation,
 			Session: sessionHex, ProbeKey: keyHex, Role: "receiver", Attempt: 1,
 			PathEpoch: p.epoch, StartUnix: start, ExpiresUnix: expires,
 			Candidates: []string{b.candidate.String()},
 		},
 		"site-b": {
-			Type: "rendezvous-plan", Generation: b.generation, PeerGeneration: a.generation,
+			Type: "rendezvous-plan", Circuit: p.circuit, Generation: b.generation, PeerGeneration: a.generation,
 			Session: sessionHex, ProbeKey: keyHex, Role: "sender", Attempt: 1,
 			PathEpoch: p.epoch, StartUnix: start, ExpiresUnix: expires,
 			Candidates: []string{a.candidate.String()},

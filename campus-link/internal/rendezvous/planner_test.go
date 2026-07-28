@@ -10,7 +10,7 @@ import (
 )
 
 func TestPlannerPairsCurrentOwners(t *testing.T) {
-	p := NewPlanner(bytes.NewReader(bytes.Repeat([]byte{7}, 96)))
+	p := NewPlanner(bytes.NewReader(bytes.Repeat([]byte{7}, 96)), "campus")
 	now := time.Unix(1_800_000_000, 0)
 	if err := p.Register("site-a", "ga", 1); err != nil {
 		t.Fatal(err)
@@ -38,6 +38,9 @@ func TestPlannerPairsCurrentOwners(t *testing.T) {
 	if a.Session != b.Session || a.ProbeKey != b.ProbeKey || a.PathEpoch != b.PathEpoch {
 		t.Fatal("peers received different session scope")
 	}
+	if a.Circuit != "campus" || b.Circuit != "campus" {
+		t.Fatal("plan lost circuit scope")
+	}
 	if a.Role != "receiver" || b.Role != "sender" || a.Candidates[0] != "203.0.113.2:40002" || b.Candidates[0] != "198.51.100.1:40001" {
 		t.Fatalf("invalid complementary plans: %#v %#v", a, b)
 	}
@@ -48,7 +51,7 @@ func TestPlannerPairsCurrentOwners(t *testing.T) {
 
 func TestPlannerRejectsStaleOwnerAndInvalidatesReplacement(t *testing.T) {
 	random := append(bytes.Repeat([]byte{8}, 48), bytes.Repeat([]byte{9}, 48)...)
-	p := NewPlanner(bytes.NewReader(random))
+	p := NewPlanner(bytes.NewReader(random), "campus")
 	now := time.Unix(1_800_000_000, 0)
 	p.Register("site-a", "ga1", 10)
 	p.Register("site-b", "gb", 20)
@@ -76,7 +79,7 @@ func TestPlannerRejectsStaleOwnerAndInvalidatesReplacement(t *testing.T) {
 }
 
 func TestPlannerRebindingRotatesEpoch(t *testing.T) {
-	p := NewPlanner(bytes.NewReader(bytes.Repeat([]byte{4}, 192)))
+	p := NewPlanner(bytes.NewReader(bytes.Repeat([]byte{4}, 192)), "campus")
 	now := time.Unix(1_800_000_000, 0)
 	p.Register("site-a", "ga", 1)
 	p.Register("site-b", "gb", 2)
@@ -91,7 +94,7 @@ func TestPlannerRebindingRotatesEpoch(t *testing.T) {
 }
 
 func TestPlannerConcurrentReadsAreSafe(t *testing.T) {
-	p := NewPlanner(bytes.NewReader(bytes.Repeat([]byte{3}, 96)))
+	p := NewPlanner(bytes.NewReader(bytes.Repeat([]byte{3}, 96)), "campus")
 	now := time.Unix(1_800_000_000, 0)
 	p.Register("site-a", "ga", 1)
 	p.Register("site-b", "gb", 2)
