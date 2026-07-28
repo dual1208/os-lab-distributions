@@ -66,6 +66,7 @@ grep -qx 'CONFIG_PACKAGE_dae=y' .config
 grep -q '^GO_VERSION_PATCH:=4$' feeds/packages/lang/golang/golang1.26/Makefile
 make download -j4 >> "${LOG}" 2>&1
 find dl -type f -not -size +0c -delete
+make tools/dwarves/compile -j1 V=s >> "${LOG}" 2>&1
 make -j4 world >> "${LOG}" 2>&1
 
 rm -rf "${ARTIFACT_ROOT:?}"/*

@@ -44,6 +44,10 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   full debug information. The dae builds must explicitly disable reduced debug
   info before selecting `KERNEL_DEBUG_INFO_BTF`, then verify BTF survived
   `make defconfig`.
+- On these four-vCPU builders, both clean parallel builds stopped at the pinned
+  `tools/dwarves` host tool without a retained sub-error; an isolated
+  `make tools/dwarves/compile -j1 V=s` succeeded. Serialize only this BTF tool
+  before returning to `make -j4 world`, and retain its diagnostic log.
 - QEMU does not model the Linksys E8450's MediaTek MT7622 SoC, switch, NAND/UBI
   layout, radios, or boot chain. The E8450 firmware therefore cannot be
   honestly booted as a virtual E8450. The interactive lab will run a separate
