@@ -29,3 +29,18 @@
 - Reusable lesson: never equate an accepted destructive request with completed
   cleanup; verify target absence and preservation of out-of-scope resources.
 - Verification: `osforge` was absent and one unrelated machine remained.
+
+## 2026-07-28 — BTF host tooling needs a narrow serial gate
+
+- Symptom: two independent clean `make -j4 world` builds stopped at
+  `tools/dwarves` with only the OpenWrt top-level failure retained.
+- Root cause: the pinned dwarves host-tool stage was not reliable under the
+  clean parallel schedule on these four-vCPU builders; the surrounding
+  OpenWrt configuration and source pins were identical across both failures.
+- Decisive evidence: `make tools/dwarves/compile -j1 V=s` configured, compiled,
+  linked, and installed all 59 Ninja steps successfully from the same tree.
+- Reusable lesson: prebuild only `tools/dwarves` with `-j1` when full kernel BTF
+  is selected, retain the verbose diagnostic, then return to bounded parallel
+  world compilation. Do not serialize the entire firmware build.
+- Verification: both incremental jobs passed the former dwarves failure point
+  and entered the LLVM BPF host-tool build.
