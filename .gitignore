@@ -4,6 +4,12 @@ github_token
 personal_computer*_info.txt
 router_info
 
+# Cloud/runtime state: may contain droplet IDs, addresses, SSH aliases, or lab
+# credentials.  Sanitized evidence belongs under docs/verification instead.
+.state/
+*.secret
+cloud-init.rendered.yaml
+
 # Retrieved reference payloads stay local; only their manifest is versioned.
 reference/**
 !reference/README.md
@@ -14,4 +20,3 @@ reference/**
 out/
 *.log
 *.exit
-
