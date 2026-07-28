@@ -4,6 +4,8 @@ set -euo pipefail
 readonly REPO_ROOT=${1:-/srv/openwrt-lab/repo}
 readonly MODE=${2:-smoke}
 readonly PROBE=${REPO_ROOT}/campus-link/tests/a11_b22.py
+readonly RESULT=/run/campus-link/a11-b22-${MODE}.result
+rm -f "${RESULT}"
 case ${MODE} in
   smoke) bulk_bytes=$((4 * 1024 * 1024)); records=10000; concurrency=100 ;;
   full) bulk_bytes=$((1024 * 1024 * 1024)); records=10000; concurrency=100 ;;
@@ -29,3 +31,5 @@ ip netns exec oslab-a python3 "${PROBE}" client \
 ip netns exec oslab-b python3 "${PROBE}" client \
   --source 10.82.0.22 --destination 10.81.0.11 \
   --records "${records}" --concurrency "${concurrency}" --bulk-bytes "${bulk_bytes}"
+printf 'STATUS=pass\nMODE=%s\nRECORDS=%s\nCONCURRENCY=%s\nBULK_BYTES_EACH_DIRECTION=%s\n' \
+  "${MODE}" "${records}" "${concurrency}" "${bulk_bytes}" > "${RESULT}"
