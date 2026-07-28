@@ -21,8 +21,9 @@ type Heartbeat struct {
 }
 
 type HeartbeatAck struct {
-	Type     string `json:"type"`
-	Sequence uint64 `json:"sequence"`
+	Type     string          `json:"type"`
+	Sequence uint64          `json:"sequence"`
+	Plan     *RendezvousPlan `json:"rendezvous_plan,omitempty"`
 }
 
 type Error struct {
