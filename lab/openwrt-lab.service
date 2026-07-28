@@ -1,0 +1,16 @@
+[Unit]
+Description=Two-router OpenWrt learning lab
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/libexec/openwrt-lab-start
+ExecStop=/usr/local/libexec/openwrt-lab-stop
+TimeoutStartSec=180
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target
+

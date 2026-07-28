@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+for role in a b; do
+  pidfile=/run/openwrt-lab/router-${role}.pid
+  if [[ -s ${pidfile} ]]; then
+    kill "$(cat "${pidfile}")" 2>/dev/null || true
+  fi
+done
+for _ in {1..20}; do
+  [[ ! -e /run/openwrt-lab/router-a.pid && ! -e /run/openwrt-lab/router-b.pid ]] && break
+  sleep 0.25
+done
+/usr/local/libexec/openwrt-lab-topology down
+

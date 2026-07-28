@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly LAB_ROOT=/srv/openwrt-lab/runtime
+readonly ARTIFACT_ROOT=/srv/openwrt-lab/artifacts/x86-lab
+readonly SECRET=/etc/openwrt-lab/admin.secret
+readonly IMAGE_GLOB='openwrt-*-x86-64-generic-ext4-combined.img.gz'
+
+install -d -m 0755 "${LAB_ROOT}" /run/openwrt-lab
+install -d -m 0700 /etc/openwrt-lab
+if [[ ! -s ${SECRET} ]]; then
+  umask 077
+  openssl rand -base64 24 > "${SECRET}"
+fi
+
+image_gz=$(find "${ARTIFACT_ROOT}" -maxdepth 1 -type f -name "${IMAGE_GLOB}" -print -quit)
+[[ -n ${image_gz} ]]
+if [[ ! -f ${LAB_ROOT}/base.img ]]; then
+  gzip -dc "${image_gz}" > "${LAB_ROOT}/base.img"
+fi
+for role in a b; do
+  if [[ ! -f ${LAB_ROOT}/router-${role}.qcow2 ]]; then
+    qemu-img create -q -f qcow2 -F raw -b "${LAB_ROOT}/base.img" "${LAB_ROOT}/router-${role}.qcow2"
+  fi
+done
+chown -R builder:builder "${LAB_ROOT}"
+chown builder:builder /run/openwrt-lab
+
+/usr/local/libexec/openwrt-lab-topology up
+
+qemu-system-x86_64 -name router-a -enable-kvm -cpu host -m 512 -smp 2 \
+  -runas builder -daemonize -pidfile /run/openwrt-lab/router-a.pid \
+  -serial unix:/run/openwrt-lab/router-a.console,server=on,wait=off \
+  -monitor none -display none \
+  -drive file="${LAB_ROOT}/router-a.qcow2",if=virtio,format=qcow2 \
+  -netdev user,id=wan,hostfwd=tcp:127.0.0.1:18443-:443 \
+  -device virtio-net-pci,netdev=wan,mac=02:00:00:00:a0:01 \
+  -netdev tap,id=lan,ifname=tap-a-lan,script=no,downscript=no \
+  -device virtio-net-pci,netdev=lan,mac=02:00:00:00:a1:01 \
+  -netdev tap,id=transit,ifname=tap-a-transit,script=no,downscript=no \
+  -device virtio-net-pci,netdev=transit,mac=02:00:00:00:a2:01
+
+qemu-system-x86_64 -name router-b -enable-kvm -cpu host -m 512 -smp 2 \
+  -runas builder -daemonize -pidfile /run/openwrt-lab/router-b.pid \
+  -serial unix:/run/openwrt-lab/router-b.console,server=on,wait=off \
+  -monitor none -display none \
+  -drive file="${LAB_ROOT}/router-b.qcow2",if=virtio,format=qcow2 \
+  -netdev user,id=wan,hostfwd=tcp:127.0.0.1:28443-:443 \
+  -device virtio-net-pci,netdev=wan,mac=02:00:00:00:b0:01 \
+  -netdev tap,id=lan,ifname=tap-b-lan,script=no,downscript=no \
+  -device virtio-net-pci,netdev=lan,mac=02:00:00:00:b1:01 \
+  -netdev tap,id=transit,ifname=tap-b-transit,script=no,downscript=no \
+  -device virtio-net-pci,netdev=transit,mac=02:00:00:00:b2:01
+
+/usr/local/libexec/openwrt-lab-console-config
+/usr/local/libexec/openwrt-lab-smoke

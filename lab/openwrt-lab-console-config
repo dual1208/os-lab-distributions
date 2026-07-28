@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+import os
+import socket
+import time
+
+secret_path = "/etc/openwrt-lab/admin.secret"
+with open(secret_path, "rb") as handle:
+    password = handle.read().strip()
+
+for role in ("a", "b"):
+    path = f"/run/openwrt-lab/router-{role}.console"
+    deadline = time.time() + 100
+    transcript = b""
+    while time.time() < deadline:
+        try:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(path)
+            sock.settimeout(1)
+            sock.sendall(b"\n")
+            while time.time() < deadline:
+                try:
+                    transcript += sock.recv(8192)
+                except TimeoutError:
+                    sock.sendall(b"\n")
+                if b"root@router-" in transcript or b"root@OpenWrt" in transcript:
+                    break
+            else:
+                raise TimeoutError("console shell did not become ready")
+            sock.sendall(b"passwd\n")
+            time.sleep(0.4)
+            sock.sendall(password + b"\n")
+            time.sleep(0.4)
+            sock.sendall(password + b"\n")
+            time.sleep(0.6)
+            sock.sendall(b"/etc/init.d/uhttpd restart\n")
+            sock.close()
+            break
+        except (FileNotFoundError, ConnectionRefusedError, TimeoutError):
+            time.sleep(2)
+    else:
+        raise SystemExit(f"router {role} console configuration timed out")
+
