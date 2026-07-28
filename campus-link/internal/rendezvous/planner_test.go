@@ -41,7 +41,7 @@ func TestPlannerPairsCurrentOwners(t *testing.T) {
 	if a.Circuit != "campus" || b.Circuit != "campus" {
 		t.Fatal("plan lost circuit scope")
 	}
-	if a.Role != "receiver" || b.Role != "sender" || a.Candidates[0] != "203.0.113.2:40002" || b.Candidates[0] != "198.51.100.1:40001" {
+	if a.Role != "sender" || b.Role != "receiver" || a.Candidates[0] != "203.0.113.2:40002" || b.Candidates[0] != "198.51.100.1:40001" {
 		t.Fatalf("invalid complementary plans: %#v %#v", a, b)
 	}
 	if a.ExpiresUnix-a.StartUnix != int64(planLifetime/time.Second)-1 {

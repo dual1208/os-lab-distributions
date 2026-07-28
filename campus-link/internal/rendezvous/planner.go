@@ -130,13 +130,13 @@ func (p *Planner) maybePlanLocked(now time.Time) error {
 	p.plans = map[string]control.RendezvousPlan{
 		"site-a": {
 			Type: "rendezvous-plan", Circuit: p.circuit, Generation: a.generation, PeerGeneration: b.generation,
-			Session: sessionHex, ProbeKey: keyHex, Role: "receiver", Attempt: 1,
+			Session: sessionHex, ProbeKey: keyHex, Role: "sender", Attempt: 1,
 			PathEpoch: p.epoch, StartUnix: start, ExpiresUnix: expires,
 			Candidates: []string{b.candidate.String()},
 		},
 		"site-b": {
 			Type: "rendezvous-plan", Circuit: p.circuit, Generation: b.generation, PeerGeneration: a.generation,
-			Session: sessionHex, ProbeKey: keyHex, Role: "sender", Attempt: 1,
+			Session: sessionHex, ProbeKey: keyHex, Role: "receiver", Attempt: 1,
 			PathEpoch: p.epoch, StartUnix: start, ExpiresUnix: expires,
 			Candidates: []string{a.candidate.String()},
 		},
