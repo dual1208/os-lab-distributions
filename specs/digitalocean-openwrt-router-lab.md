@@ -111,6 +111,10 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 - Build an x86-64 OpenWrt lab image from the same OpenWrt commit and compatible
   package profile. Differences required by architecture or virtual hardware
   must be machine-readable and documented.
+- Discover the built ext4-combined image within the bounded x86 artifact
+  directory using OpenWrt's actual versionless filename as well as a possible
+  version-prefixed variant; a zero-match discovery must stop before QEMU or
+  host topology creation.
 - Run the virtual router under QEMU/KVM. It must have at least one WAN and two
   LAN-facing interfaces so forwarding, firewall zones, and NAT are observable.
 - Do not expose LuCI to the public Internet. Bind the host forward to loopback,
