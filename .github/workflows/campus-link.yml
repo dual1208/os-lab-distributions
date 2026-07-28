@@ -34,6 +34,7 @@ jobs:
         run: |
           go test -run='^$' -fuzz=Fuzz -fuzztime=10s ./internal/binding
           go test -run='^$' -fuzz=Fuzz -fuzztime=10s ./internal/control
+          go test -run='^$' -fuzz=Fuzz -fuzztime=10s ./internal/identity
           go test -run='^$' -fuzz=Fuzz -fuzztime=10s ./internal/rendezvous
           go test -run='^$' -fuzz=Fuzz -fuzztime=10s ./internal/tun
       - name: A11/B22 protocol tests
