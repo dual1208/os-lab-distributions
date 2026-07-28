@@ -5,11 +5,34 @@ readonly REPO_ROOT=${1:-/srv/openwrt-lab/repo}
 readonly RELAY_ADDRESS=${2:?usage: install-edge-lab.sh REPO_ROOT RELAY_HOST_OR_IP}
 readonly ROOT=/etc/campus-link
 readonly BUILD=/srv/openwrt-lab/build/campus-link
+readonly ROLLBACK=/var/lib/campus-link/rollback-edge
 
 [[ ${EUID} -eq 0 ]]
 [[ ${RELAY_ADDRESS} != *:* ]]
 "${REPO_ROOT}/campus-link/scripts/build.sh" "${REPO_ROOT}"
 "${REPO_ROOT}/campus-link/scripts/generate-lab-pki.sh"
+
+version=$(<"${BUILD}/VERSION")
+installed_version=$(cat /var/lib/campus-link/installed-edge-version 2>/dev/null || true)
+if [[ -x /usr/local/bin/campus-link-edge && ${installed_version} != "${version}" ]]; then
+  install -d -m 0700 "${ROLLBACK}"
+  install -m 0755 /usr/local/bin/campus-link-edge "${ROLLBACK}/campus-link-edge"
+  [[ ! -x /usr/local/bin/campus-linkctl ]] || install -m 0755 /usr/local/bin/campus-linkctl "${ROLLBACK}/campus-linkctl"
+  for name in edge-a.json edge-b.json; do
+    [[ ! -f ${ROOT}/${name} ]] || install -m 0600 "${ROOT}/${name}" "${ROLLBACK}/${name}"
+  done
+  for name in campus-link-edge-a.service campus-link-edge-b.service; do
+    [[ ! -f /etc/systemd/system/${name} ]] || install -m 0644 "/etc/systemd/system/${name}" "${ROLLBACK}/${name}"
+  done
+  printf '%s\n' "${installed_version:-unversioned}" > "${ROLLBACK}/VERSION"
+  touch "${ROLLBACK}/.complete"
+fi
+rollback_on_error() {
+  if [[ -f ${ROLLBACK}/.complete ]]; then
+    "${REPO_ROOT}/campus-link/scripts/rollback-edge.sh" || true
+  fi
+}
+trap rollback_on_error ERR
 
 install -d -m 0755 /usr/local/libexec /usr/local/bin "${ROOT}"
 install -m 0755 "${BUILD}/campus-link-edge" /usr/local/bin/campus-link-edge
@@ -18,6 +41,7 @@ for script in topology configure-tun smoke-external restore-offline; do
   install -m 0755 "${REPO_ROOT}/campus-link/scripts/${script}.sh" "/usr/local/libexec/campus-link-${script}"
 done
 install -m 0755 "${REPO_ROOT}/campus-link/scripts/qualify-a11-b22.sh" /usr/local/libexec/campus-link-qualify-a11-b22
+install -m 0755 "${REPO_ROOT}/campus-link/scripts/rollback-edge.sh" /usr/local/libexec/campus-link-rollback-edge
 install -m 0755 "${REPO_ROOT}/lab/openwrt-lab-topology" /usr/local/libexec/openwrt-lab-topology
 install -m 0755 "${REPO_ROOT}/lab/openwrt-lab-console-config" /usr/local/libexec/openwrt-lab-console-config
 for unit in campus-link-topology.service campus-link-edge-a.service campus-link-edge-b.service campus-link-external.target; do
@@ -38,3 +62,6 @@ ip -n oslab-b address show dev ep-b | grep -q '10.82.0.22/24' || ip -n oslab-b a
 /usr/local/libexec/openwrt-lab-console-config
 systemctl daemon-reload
 systemctl enable campus-link-external.target
+install -d -m 0700 /var/lib/campus-link
+printf '%s\n' "${version}" > /var/lib/campus-link/installed-edge-version
+trap - ERR

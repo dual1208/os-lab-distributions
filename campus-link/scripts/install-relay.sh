@@ -3,14 +3,29 @@ set -euo pipefail
 
 readonly STAGE=${1:?usage: install-relay.sh STAGING_DIRECTORY}
 readonly ROOT=/etc/campus-link
+readonly ROLLBACK=/var/lib/campus-link/rollback-relay
 
 [[ ${EUID} -eq 0 ]]
-for required in campus-link-relay relay-control.crt relay-control.key control-ca.crt; do
+for required in campus-link-relay relay-control.crt relay-control.key control-ca.crt VERSION rollback-relay.sh; do
   [[ -s ${STAGE}/${required} ]]
 done
 if find "${STAGE}" -maxdepth 1 -type f \( -name '*data*' -o -name 'site-*' -o -name '*-ca.key' \) | grep -q .; then
   echo 'Data-plane or CA-signing private material found in relay stage.' >&2
   exit 4
+fi
+
+version=$(<"${STAGE}/VERSION")
+installed_version=$(cat /var/lib/campus-link/installed-relay-version 2>/dev/null || true)
+if [[ -x /usr/local/bin/campus-link-relay && ${installed_version} != "${version}" ]]; then
+  install -d -m 0700 "${ROLLBACK}"
+  install -m 0755 /usr/local/bin/campus-link-relay "${ROLLBACK}/campus-link-relay"
+  [[ ! -f ${ROOT}/relay.json ]] || install -m 0600 "${ROOT}/relay.json" "${ROLLBACK}/relay.json"
+  [[ ! -f /etc/systemd/system/campus-link-relay.service ]] || install -m 0644 /etc/systemd/system/campus-link-relay.service "${ROLLBACK}/campus-link-relay.service"
+  for name in control-ca.crt relay-control.crt relay-control.key; do
+    [[ ! -f ${ROOT}/pki/${name} ]] || install -m 0600 "${ROOT}/pki/${name}" "${ROLLBACK}/${name}"
+  done
+  printf '%s\n' "${installed_version:-unversioned}" > "${ROLLBACK}/VERSION"
+  touch "${ROLLBACK}/.complete"
 fi
 
 restore_prior_service=0
@@ -19,7 +34,9 @@ if systemctl is-active --quiet campus-link-relay.service; then
   restore_prior_service=1
 fi
 restore_on_error() {
-  if [[ ${restore_prior_service} -eq 1 ]]; then
+  if [[ -f ${ROLLBACK}/.complete ]]; then
+    /bin/bash "${STAGE}/rollback-relay.sh" || true
+  elif [[ ${restore_prior_service} -eq 1 ]]; then
     systemctl start campus-link-relay.service || true
   fi
 }
@@ -31,8 +48,10 @@ fi
 
 getent group campus-link >/dev/null || groupadd --system campus-link
 id -u campus-link >/dev/null 2>&1 || useradd --system --gid campus-link --home-dir /nonexistent --shell /usr/sbin/nologin campus-link
+install -d -m 0755 /usr/local/libexec
 install -d -m 0750 -o root -g campus-link "${ROOT}/pki"
 install -m 0755 "${STAGE}/campus-link-relay" /usr/local/bin/campus-link-relay
+install -m 0755 "${STAGE}/rollback-relay.sh" /usr/local/libexec/campus-link-rollback-relay
 install -m 0644 "${STAGE}/control-ca.crt" "${ROOT}/pki/control-ca.crt"
 install -m 0644 "${STAGE}/relay-control.crt" "${ROOT}/pki/relay-control.crt"
 install -m 0640 -o root -g campus-link "${STAGE}/relay-control.key" "${ROOT}/pki/relay-control.key"
@@ -45,4 +64,6 @@ install -m 0644 "${STAGE}/campus-link-relay.service" /etc/systemd/system/campus-
 systemctl daemon-reload
 systemctl enable --now campus-link-relay.service
 systemctl is-active --quiet campus-link-relay.service
+install -d -m 0700 /var/lib/campus-link
+printf '%s\n' "${version}" > /var/lib/campus-link/installed-relay-version
 trap - ERR

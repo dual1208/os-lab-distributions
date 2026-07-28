@@ -21,3 +21,4 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 "${GO_BIN}" build \
   -trimpath -ldflags "-s -w" \
   -o "${OUT}/campus-linkctl" ./cmd/campus-linkctl
 sha256sum "${OUT}"/campus-link-* > "${OUT}/SHA256SUMS"
+printf '%s\n' "${VERSION}" > "${OUT}/VERSION"

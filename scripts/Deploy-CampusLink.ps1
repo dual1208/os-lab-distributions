@@ -28,30 +28,36 @@ if ($LASTEXITCODE -ne 0) { throw 'Edge build or installation failed.' }
 
 $stage = Join-Path $repoRoot '.state\campus-link-relay-stage'
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-$names = @('campus-link-relay','relay-control.crt','relay-control.key','control-ca.crt','campus-link-relay.service','install-relay.sh')
+$names = @('campus-link-relay','relay-control.crt','relay-control.key','control-ca.crt','campus-link-relay.service','install-relay.sh','rollback-relay.sh','VERSION')
 foreach ($name in $names) {
     $path = Join-Path $stage $name
     if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
 }
 & scp "root@${labIp}:/srv/openwrt-lab/build/campus-link/campus-link-relay" (Join-Path $stage 'campus-link-relay')
+& scp "root@${labIp}:/srv/openwrt-lab/build/campus-link/VERSION" (Join-Path $stage 'VERSION')
 & scp "root@${labIp}:/etc/campus-link/pki/relay-control.crt" (Join-Path $stage 'relay-control.crt')
 & scp "root@${labIp}:/etc/campus-link/pki/relay-control.key" (Join-Path $stage 'relay-control.key')
 & scp "root@${labIp}:/etc/campus-link/pki/control-ca.crt" (Join-Path $stage 'control-ca.crt')
 if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the bounded relay payload.' }
 Copy-Item -LiteralPath (Join-Path $repoRoot 'campus-link\systemd\campus-link-relay.service') -Destination (Join-Path $stage 'campus-link-relay.service')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'campus-link\scripts\install-relay.sh') -Destination (Join-Path $stage 'install-relay.sh')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'campus-link\scripts\rollback-relay.sh') -Destination (Join-Path $stage 'rollback-relay.sh')
 
-& ssh gz 'set -eu; install -d -m 0700 /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh'
+& ssh gz 'set -eu; install -d -m 0700 /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh /tmp/campus-link-stage/rollback-relay.sh /tmp/campus-link-stage/VERSION'
 foreach ($name in $names) {
     & scp (Join-Path $stage $name) "gz:/tmp/campus-link-stage/$name"
     if ($LASTEXITCODE -ne 0) { throw "Could not upload relay payload item: $name" }
 }
-& ssh gz 'set -eu; /bin/bash /tmp/campus-link-stage/install-relay.sh /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh; rmdir /tmp/campus-link-stage'
+& ssh gz 'set -eu; /bin/bash /tmp/campus-link-stage/install-relay.sh /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh /tmp/campus-link-stage/rollback-relay.sh /tmp/campus-link-stage/VERSION; rmdir /tmp/campus-link-stage'
 if ($LASTEXITCODE -ne 0) { throw 'Relay installation failed.' }
 foreach ($name in $names) { Remove-Item -LiteralPath (Join-Path $stage $name) -Force }
 Remove-Item -LiteralPath $stage -Force
 
 & (Join-Path $PSScriptRoot 'Authorize-CampusLinkAliyunIngress.ps1') -AliyunCli $AliyunCli -Confirm:$false
 & ssh "root@$labIp" 'systemctl start campus-link-external.target; systemctl restart campus-link-edge-a.service campus-link-edge-b.service; /usr/local/libexec/campus-link-smoke-external'
-if ($LASTEXITCODE -ne 0) { throw 'External campus-link smoke test failed.' }
+if ($LASTEXITCODE -ne 0) {
+    & ssh gz '/usr/local/libexec/campus-link-rollback-relay'
+    & ssh "root@$labIp" '/usr/local/libexec/campus-link-rollback-edge'
+    throw 'External campus-link smoke test failed; both components were rolled back.'
+}
 Write-Host 'campus-link external relay lab deployed and smoke-tested.'
