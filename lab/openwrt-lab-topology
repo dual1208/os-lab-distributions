@@ -5,6 +5,9 @@ down() {
   ip netns del oslab-a 2>/dev/null || true
   ip netns del oslab-b 2>/dev/null || true
   ip netns del oslab-relay 2>/dev/null || true
+  for tap in tap-a-lan tap-b-lan tap-a-transit tap-b-transit; do
+    ip link del "$tap" 2>/dev/null || true
+  done
   for bridge in br-a-lan br-b-lan br-a-transit br-b-transit; do
     ip link del "$bridge" 2>/dev/null || true
   done
@@ -69,4 +72,3 @@ case ${1:-} in
   down) down ;;
   *) echo 'usage: openwrt-lab-topology up|down' >&2; exit 2 ;;
 esac
-

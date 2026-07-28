@@ -226,6 +226,9 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   and MTU behavior.
 - A reset command restores a known topology without deleting unrelated host or
   cloud resources.
+- Stop/reset must remove the exact four persistent tap devices as well as their
+  bridges and namespaces before recreation. Clear the prior smoke marker before
+  each start so a failed restart can never display a stale `STATUS=pass`.
 - Every tutorial command is tested on the provisioned host and is stored in
   GitHub with expected-output patterns rather than private raw output.
 
