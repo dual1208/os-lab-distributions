@@ -104,3 +104,23 @@ func TestCandidateValidation(t *testing.T) {
 		t.Fatalf("explicit private candidate rejected: %v", err)
 	}
 }
+
+func FuzzProbeParser(f *testing.F) {
+	now := time.Unix(1_800_000_000, 0)
+	key := make([]byte, 32)
+	key[0] = 7
+	var session, nonce [16]byte
+	session[0], nonce[0] = 1, 2
+	seed, err := (Probe{
+		Circuit: "campus", Session: session, Nonce: nonce, Site: 1,
+		Role: RoleSender, Expires: now.Add(30 * time.Second), Attempt: 1,
+	}).Marshal(key)
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(seed)
+	f.Add([]byte("CLPUNCH2"))
+	f.Fuzz(func(t *testing.T, packet []byte) {
+		_, _ = Parse(packet, key, Expect{Circuit: "campus", Session: session, Site: 1, Now: now})
+	})
+}
