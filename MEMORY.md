@@ -82,3 +82,37 @@
 - Verification: the routed allow/deny smoke and no-inner-header capture passed;
   relay stop withdrew both TUN routes while SSH remained reachable, and restart
   restored the path.
+
+## 2026-07-28 — Circuit peers must fail and recover as one generation
+
+- Symptom: a killed edge sometimes needed more than 30 seconds to restore an
+  application probe even though each individual service restarted quickly.
+- Root cause: the surviving edge kept an authenticated control session and an
+  obsolete QUIC peer, so the two sides chased staggered idle timeouts. A
+  60-second `ExecStartPost` TUN polling loop could then hold a dead main process
+  in `activating` and delay the next restart.
+- Decisive evidence: journals showed B timing out, then A timing out one cycle
+  later; a failed trial left both units in `start-post` after their main
+  processes had exited. Coordinated relay leg invalidation and a bounded
+  200-millisecond post-start poll removed both delays.
+- Reusable lesson: circuit membership is joint state. Replacing or losing one
+  authenticated leg must invalidate the peer leg, and supervisor helper
+  deadlines must be shorter than the service recovery objective.
+- Verification: 30 edge-kill trials achieved p95 9.318 seconds and max 9.640
+  seconds; 30 relay restarts achieved p95 11.129 seconds and max 11.918 seconds,
+  with route withdrawal observed in every trial.
+
+## 2026-07-28 — Observability must not run in the packet hot path
+
+- Symptom: an exact 1 MiB A11/B22 transfer took roughly 55 seconds and burst UDP
+  delivery collapsed even though CPU and memory were mostly idle.
+- Root cause: each edge marshalled, wrote, and atomically renamed its JSON status
+  file after every sent and received packet.
+- Decisive evidence: code inspection found synchronous filesystem work on both
+  bridge loops; moving status publication to a one-second ticker reduced packet
+  path work while preserving counter visibility. The remaining long-haul bulk
+  limit is transport/path throughput, now measured separately.
+- Reusable lesson: packet counters should be atomic and status export periodic;
+  never put filesystem durability in a forwarding loop.
+- Verification: 10,000 ordered hashes, 100 concurrent flows, 4 MiB bulk hashing,
+  and the loss/delay/jitter/reorder matrix completed without corruption.

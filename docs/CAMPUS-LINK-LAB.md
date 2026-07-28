@@ -82,6 +82,40 @@ captures at most 96 outer UDP/443 packets on `gz`, scans for the exact inner
 IPv4 address header in both directions, deletes the pcap, and verifies the
 relay's `/etc/campus-link` file boundary. It does not print host addresses.
 
+## Exercise A11 and B22 as real processes
+
+The production-candidate pair is A11 at `10.81.0.11` and B22 at
+`10.82.0.22`. Each OpenWrt router admits all IP protocols only for this exact
+pair in the inbound inter-site direction. The broader lab policy remains
+deny-by-default, with its separate TCP/8080 lesson exception.
+
+Run the bounded bidirectional application suite on the router-lab host:
+
+```bash
+/usr/local/libexec/campus-link-qualify-a11-b22 /srv/openwrt-lab/repo smoke
+```
+
+It checks 10,000 ordered payload digests, 100 simultaneous TCP flows, bulk
+SHA-256, TCP half-close behavior, and paced UDP delivery in both directions.
+UDP is measured rather than described as lossless; the inner TCP tests must be
+exact despite loss and reordering.
+
+The fault and impairment gates are also executable:
+
+```bash
+/usr/local/libexec/campus-link-test-edge-recovery /srv/openwrt-lab/repo full
+/usr/local/libexec/campus-link-test-netem /srv/openwrt-lab/repo
+```
+
+From Windows, the relay restart gate is:
+
+```powershell
+.\scripts\Test-CampusLinkRelayRecovery.ps1 -Mode full
+```
+
+These tests never widen cloud ingress. Netem is attached only to the two edge
+WAN namespace devices and is removed by a trap.
+
 ## Learn failure versus policy
 
 Stopping the relay demonstrates a transport failure:
@@ -90,13 +124,15 @@ Stopping the relay demonstrates a transport failure:
 # on gz
 systemctl stop campus-link-relay.service
 
-# on the router-lab host, after the 45-second QUIC idle timeout
+# on the router-lab host, while fail-closed recovery runs
 ip -n campus-a route show 10.82.0.0/24
 ip -n campus-b route show 10.81.0.0/24
 ```
 
-Both outputs become empty because `cl0` disappears with the edge process. SSH
-to each cloud host remains independent and reachable. Restart with:
+Both outputs become empty because `cl0` disappears with the edge process. A
+five-second acknowledged control heartbeat and coordinated leg invalidation
+then restart both data peers. SSH to each cloud host remains independent and
+reachable. Manual restart remains available:
 
 ```bash
 # on gz
@@ -140,5 +176,18 @@ ssh gz 'systemctl disable --now campus-link-relay.service'
 
 This lab teaches routing, policy, TUN behavior, mTLS control, UDP tuple binding,
 and end-to-end QUIC encryption. It does not validate Linksys E8450 hardware,
-Wi-Fi, NAND/UBI, bootloaders, roaming edge addresses, NAT rebinding after an
-active session, multipath, congestion tuning, or HTTP/3 CONNECT-IP semantics.
+Wi-Fi, NAND/UBI, bootloaders, multipath, or HTTP/3 CONNECT-IP semantics. The
+candidate still has one relay, no TCP/441 fallback, no live certificate
+rotation, and low bulk throughput on the current long-haul relay path. Those
+are production blockers, not hidden caveats. Use the current candidate report
+before making a production claim.
+
+The last installed candidate is recoverable with:
+
+```bash
+# edge host
+/usr/local/libexec/campus-link-rollback-edge
+
+# gz
+/usr/local/libexec/campus-link-rollback-relay
+```

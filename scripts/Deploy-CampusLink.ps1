@@ -57,7 +57,14 @@ Remove-Item -LiteralPath $stage -Force
 & ssh "root@$labIp" 'systemctl start campus-link-external.target; systemctl restart campus-link-edge-a.service campus-link-edge-b.service; /usr/local/libexec/campus-link-smoke-external'
 if ($LASTEXITCODE -ne 0) {
     & ssh gz '/usr/local/libexec/campus-link-rollback-relay'
+    $relayRollback = $LASTEXITCODE
     & ssh "root@$labIp" '/usr/local/libexec/campus-link-rollback-edge'
+    $edgeRollback = $LASTEXITCODE
+    & ssh "root@$labIp" '/usr/local/libexec/campus-link-smoke-external'
+    $rollbackSmoke = $LASTEXITCODE
+    if ($relayRollback -ne 0 -or $edgeRollback -ne 0 -or $rollbackSmoke -ne 0) {
+        throw 'External smoke failed and rollback verification also failed; inspect both services.'
+    }
     throw 'External campus-link smoke test failed; both components were rolled back.'
 }
 Write-Host 'campus-link external relay lab deployed and smoke-tested.'
