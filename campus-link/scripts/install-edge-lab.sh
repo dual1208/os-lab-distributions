@@ -45,6 +45,7 @@ install -m 0755 "${REPO_ROOT}/campus-link/scripts/test-edge-recovery.sh" /usr/lo
 install -m 0755 "${REPO_ROOT}/campus-link/scripts/test-netem.sh" /usr/local/libexec/campus-link-test-netem
 install -m 0755 "${REPO_ROOT}/campus-link/scripts/test-relay-recovery-watch.sh" /usr/local/libexec/campus-link-test-relay-recovery-watch
 install -m 0755 "${REPO_ROOT}/campus-link/scripts/soak-a11-b22.sh" /usr/local/libexec/campus-link-soak-a11-b22
+install -m 0755 "${REPO_ROOT}/campus-link/scripts/accelerated-fault-soak.sh" /usr/local/libexec/campus-link-accelerated-fault-soak
 install -m 0755 "${REPO_ROOT}/campus-link/scripts/rollback-edge.sh" /usr/local/libexec/campus-link-rollback-edge
 install -m 0755 "${REPO_ROOT}/lab/openwrt-lab-topology" /usr/local/libexec/openwrt-lab-topology
 install -m 0755 "${REPO_ROOT}/lab/openwrt-lab-console-config" /usr/local/libexec/openwrt-lab-console-config
