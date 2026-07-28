@@ -20,3 +20,5 @@ reference/**
 out/
 *.log
 *.exit
+__pycache__/
+*.py[cod]
