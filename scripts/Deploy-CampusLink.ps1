@@ -20,7 +20,7 @@ if (-not $relayAddress -or $relayAddress -notmatch '^[A-Za-z0-9.-]+$') {
     throw 'The gz HostName is not a safe IPv4 address or DNS name for the edge configuration.'
 }
 
-& ssh gz "set -eu; test -z \"`$(ss -H -ltn '( sport = :443 )')\"; test -z \"`$(ss -H -lun '( sport = :443 )')\""
+& ssh gz 'set -eu; ! ss -H -ltn "sport = :443" | grep -q .; ! ss -H -lun "sport = :443" | grep -q .'
 if ($LASTEXITCODE -ne 0) { throw 'gz TCP/443 or UDP/443 became occupied; deployment stopped.' }
 
 & ssh "root@$labIp" "set -eu; cd /srv/openwrt-lab/repo; git pull --ff-only; ./campus-link/scripts/install-edge-lab.sh /srv/openwrt-lab/repo '$relayAddress'"
@@ -41,14 +41,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the bounded relay payload.'
 Copy-Item -LiteralPath (Join-Path $repoRoot 'campus-link\systemd\campus-link-relay.service') -Destination (Join-Path $stage 'campus-link-relay.service')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'campus-link\scripts\install-relay.sh') -Destination (Join-Path $stage 'install-relay.sh')
 
-& ssh gz "set -eu; install -d -m 0700 /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh"
+& ssh gz 'set -eu; install -d -m 0700 /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh'
 foreach ($name in $names) {
     & scp (Join-Path $stage $name) "gz:/tmp/campus-link-stage/$name"
     if ($LASTEXITCODE -ne 0) { throw "Could not upload relay payload item: $name" }
 }
-& ssh gz "set -eu; /bin/bash /tmp/campus-link-stage/install-relay.sh /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh; rmdir /tmp/campus-link-stage"
+& ssh gz 'set -eu; /bin/bash /tmp/campus-link-stage/install-relay.sh /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh; rmdir /tmp/campus-link-stage'
 if ($LASTEXITCODE -ne 0) { throw 'Relay installation failed.' }
 
-& ssh "root@$labIp" "systemctl start campus-link-external.target; /usr/local/libexec/campus-link-smoke-external"
+& ssh "root@$labIp" 'systemctl start campus-link-external.target; /usr/local/libexec/campus-link-smoke-external'
 if ($LASTEXITCODE -ne 0) { throw 'External campus-link smoke test failed.' }
 Write-Host 'campus-link external relay lab deployed and smoke-tested.'
