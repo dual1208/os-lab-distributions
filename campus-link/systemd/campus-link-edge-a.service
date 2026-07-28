@@ -1,0 +1,17 @@
+[Unit]
+Description=campus-link site-a edge
+After=campus-link-topology.service
+Requires=campus-link-topology.service
+PartOf=campus-link-external.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ip netns exec campus-a /usr/local/bin/campus-link-edge -config /etc/campus-link/edge-a.json
+ExecStartPost=/usr/local/libexec/campus-link-configure-tun campus-a 10.82.0.0/24
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/run/campus-link

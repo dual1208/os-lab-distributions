@@ -1,0 +1,8 @@
+[Unit]
+Description=External blind-relay campus-link learning lab
+Requires=campus-link-topology.service
+Wants=campus-link-edge-a.service campus-link-edge-b.service
+After=campus-link-topology.service
+
+[Install]
+WantedBy=multi-user.target

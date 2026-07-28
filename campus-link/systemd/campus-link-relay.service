@@ -1,0 +1,34 @@
+[Unit]
+Description=campus-link blind UDP relay and authenticated control plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=campus-link
+Group=campus-link
+ExecStart=/usr/local/bin/campus-link-relay -config /etc/campus-link/relay.json
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=campus-link
+RuntimeDirectoryMode=0750
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

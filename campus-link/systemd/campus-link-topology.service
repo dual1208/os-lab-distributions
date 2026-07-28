@@ -1,0 +1,13 @@
+[Unit]
+Description=Isolated namespaces for the campus-link external relay lab
+After=openwrt-lab.service network-online.target
+Requires=openwrt-lab.service
+PartOf=campus-link-external.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/libexec/campus-link-topology up
+ExecStop=/usr/local/libexec/campus-link-topology down
+TimeoutStartSec=30
+TimeoutStopSec=30
