@@ -12,6 +12,7 @@ readonly SOURCE_ROOT=${WORK_ROOT}/openwrt
 readonly ARTIFACT_ROOT=/srv/openwrt-lab/artifacts/e8450-dae
 readonly LOG=${WORK_ROOT}/e8450-build.log
 readonly EXIT_FILE=${WORK_ROOT}/e8450-build.exit
+readonly NINJA_BIN=${SOURCE_ROOT}/staging_dir/host/bin/ninja
 
 if [[ ${EUID} -eq 0 ]]; then
   echo 'run this build as the unprivileged builder user' >&2
@@ -84,12 +85,13 @@ grep -q '^PKG_HASH:=4f668a32fbfc1132e6a881fb968c2f1dada631492a339211735fbb255a42
 
 make download -j4 >> "${LOG}" 2>&1
 find dl -type f -not -size +0c -delete
-if ! make -j2 tools/compile >> "${LOG}" 2>&1; then
+make -j2 tools/ninja/compile >> "${LOG}" 2>&1
+if ! make -j4 tools/compile NINJA="${NINJA_BIN} -j2" >> "${LOG}" 2>&1; then
   echo 'parallel tools pass failed; isolating the known dwarves gate' >> "${LOG}"
-  make tools/dwarves/compile -j1 V=s >> "${LOG}" 2>&1
+  make tools/dwarves/compile -j1 V=s NINJA="${NINJA_BIN} -j1" >> "${LOG}" 2>&1
 fi
-make -j2 tools/compile >> "${LOG}" 2>&1
-make -j4 world >> "${LOG}" 2>&1
+make -j4 tools/compile NINJA="${NINJA_BIN} -j2" >> "${LOG}" 2>&1
+make -j4 world NINJA="${NINJA_BIN} -j2" >> "${LOG}" 2>&1
 
 rm -rf "${ARTIFACT_ROOT:?}"/*
 cp -a bin/targets/mediatek/mt7622/. "${ARTIFACT_ROOT}/"

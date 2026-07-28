@@ -59,5 +59,8 @@
 - Reusable lesson: constrain memory-heavy host tools separately from the main
   build and define success as an explicit end-of-pipeline marker plus artifact
   checks, never as a trap's status alone.
-- Verification: the scripts now use two jobs for `tools/compile`, retain four
-  for `world`, and coerce an unexpected zero-status EXIT trap to failure.
+- Verification: an initial `make -j2` retry still spawned six compiler children,
+  proving the recursive jobserver assumption false. The scripts now bootstrap
+  Ninja and pass an explicit `NINJA=... -j2` override while retaining four
+  outer make jobs; an intentional stop also proved the corrected trap writes
+  `EXIT=1`.
