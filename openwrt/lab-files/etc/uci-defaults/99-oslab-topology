@@ -15,12 +15,16 @@ if [ "$role" = a ]; then
   transit_ip=172.31.1.1
   transit_gateway=172.31.1.2
   remote_lan=10.82.0.0/24
+  local_process=10.81.0.11
+  remote_process=10.82.0.22
 else
   hostname=router-b
   lan_ip=10.82.0.1
   transit_ip=172.31.2.1
   transit_gateway=172.31.2.2
   remote_lan=10.81.0.0/24
+  local_process=10.82.0.22
+  remote_process=10.81.0.11
 fi
 
 uci -q batch <<EOF
@@ -118,9 +122,19 @@ set firewall.luci_lab.dest_port='443'
 set firewall.luci_lab.target='ACCEPT'
 EOF
 
+uci -q batch <<EOF
+set firewall.process_pair='rule'
+set firewall.process_pair.name='Permit authenticated A11-B22 process pair'
+set firewall.process_pair.src='transit'
+set firewall.process_pair.dest='lan'
+set firewall.process_pair.src_ip='${remote_process}'
+set firewall.process_pair.dest_ip='${local_process}'
+set firewall.process_pair.proto='all'
+set firewall.process_pair.target='ACCEPT'
+EOF
+
 uci commit system
 uci commit network
 uci commit firewall
 printf '%s\n' "$role" > /etc/oslab-role
 exit 0
-

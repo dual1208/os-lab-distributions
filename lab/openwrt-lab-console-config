@@ -54,7 +54,24 @@ for role in ("a", "b"):
             read_until(sock, (b"Retype password",), deadline)
             sock.sendall(password + b"\n")
             read_until(sock, (b"password for root changed", b"Password for root changed"), deadline)
-            sock.sendall(b"/etc/init.d/uhttpd restart; echo OSLAB_CONFIGURED\n")
+            if role == "a":
+                local_process, remote_process = "10.81.0.11", "10.82.0.22"
+            else:
+                local_process, remote_process = "10.82.0.22", "10.81.0.11"
+            command = (
+                "uci -q delete firewall.process_pair; "
+                "uci set firewall.process_pair=rule; "
+                "uci set firewall.process_pair.name='Permit authenticated A11-B22 process pair'; "
+                "uci set firewall.process_pair.src=transit; "
+                "uci set firewall.process_pair.dest=lan; "
+                f"uci set firewall.process_pair.src_ip={remote_process}; "
+                f"uci set firewall.process_pair.dest_ip={local_process}; "
+                "uci set firewall.process_pair.proto=all; "
+                "uci set firewall.process_pair.target=ACCEPT; "
+                "uci commit firewall; /etc/init.d/firewall reload; "
+                "/etc/init.d/uhttpd restart; echo OSLAB_CONFIGURED\n"
+            )
+            sock.sendall(command.encode())
             read_until(sock, (b"OSLAB_CONFIGURED",), deadline)
             sock.close()
             break

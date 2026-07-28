@@ -16,7 +16,13 @@ type Registered struct {
 }
 
 type Heartbeat struct {
-	Type string `json:"type"`
+	Type     string `json:"type"`
+	Sequence uint64 `json:"sequence"`
+}
+
+type HeartbeatAck struct {
+	Type     string `json:"type"`
+	Sequence uint64 `json:"sequence"`
 }
 
 type Error struct {

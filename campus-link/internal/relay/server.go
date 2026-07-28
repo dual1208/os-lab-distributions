@@ -22,6 +22,7 @@ import (
 )
 
 type leg struct {
+	owner            uint64
 	token            []byte
 	generation       string
 	online           bool
@@ -32,14 +33,17 @@ type leg struct {
 }
 
 type Server struct {
-	cfg      config.Relay
-	mu       sync.Mutex
-	legs     map[string]*leg
-	forwardA uint64
-	forwardB uint64
-	dropped  uint64
-	udp      *net.UDPConn
+	cfg       config.Relay
+	mu        sync.Mutex
+	legs      map[string]*leg
+	forwardA  uint64
+	forwardB  uint64
+	dropped   uint64
+	nextOwner uint64
+	udp       *net.UDPConn
 }
+
+const maxOuterDatagramSize = 2048
 
 type status struct {
 	Circuit string                `json:"circuit"`
@@ -125,7 +129,7 @@ func (s *Server) handleControl(raw net.Conn) {
 	if identity != "site-a" && identity != "site-b" {
 		return
 	}
-	dec := json.NewDecoder(conn)
+	dec := control.NewDecoder(conn)
 	enc := json.NewEncoder(conn)
 	var reg control.Register
 	if err := dec.Decode(&reg); err != nil {
@@ -140,14 +144,7 @@ func (s *Server) handleControl(raw net.Conn) {
 		return
 	}
 	s.mu.Lock()
-	l := s.legs[identity]
-	l.token = token
-	l.generation = reg.Generation
-	l.online = true
-	l.bound = false
-	l.addr = nil
-	l.pendingAddr = nil
-	l.pendingChallenge = nil
+	owner := s.activateLegLocked(identity, reg.Generation, token)
 	s.writeStatusLocked()
 	s.mu.Unlock()
 	if err := enc.Encode(control.Registered{Type: "registered", BindToken: hex.EncodeToString(token)}); err != nil {
@@ -161,21 +158,23 @@ func (s *Server) handleControl(raw net.Conn) {
 		if err := dec.Decode(&hb); err != nil {
 			break
 		}
-		if hb.Type != "heartbeat" {
+		if hb.Type != "heartbeat" || hb.Sequence == 0 {
+			break
+		}
+		_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		if err := enc.Encode(control.HeartbeatAck{Type: "heartbeat-ack", Sequence: hb.Sequence}); err != nil {
 			break
 		}
 	}
 	s.mu.Lock()
-	if l.generation == reg.Generation {
-		*l = leg{}
-		s.writeStatusLocked()
-	}
+	s.clearLegLocked(identity, owner)
+	s.writeStatusLocked()
 	s.mu.Unlock()
 	log.Printf("control disconnected: site=%s", identity)
 }
 
 func (s *Server) spliceUDP(ctx context.Context) error {
-	buf := make([]byte, 65535)
+	buf := make([]byte, maxOuterDatagramSize+1)
 	for {
 		_ = s.udp.SetReadDeadline(time.Now().Add(time.Second))
 		n, src, err := s.udp.ReadFromUDP(buf)
@@ -189,6 +188,12 @@ func (s *Server) spliceUDP(ctx context.Context) error {
 			return err
 		}
 		packet := append([]byte(nil), buf[:n]...)
+		if n > maxOuterDatagramSize {
+			s.mu.Lock()
+			s.dropped++
+			s.mu.Unlock()
+			continue
+		}
 		if s.handleBinding(packet, src) {
 			continue
 		}
@@ -211,6 +216,27 @@ func (s *Server) spliceUDP(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (s *Server) activateLegLocked(site, generation string, token []byte) uint64 {
+	s.nextOwner++
+	owner := s.nextOwner
+	*s.legs[site] = leg{
+		owner:      owner,
+		token:      append([]byte(nil), token...),
+		generation: generation,
+		online:     true,
+	}
+	return owner
+}
+
+func (s *Server) clearLegLocked(site string, owner uint64) bool {
+	l := s.legs[site]
+	if l.owner != owner {
+		return false
+	}
+	*l = leg{}
+	return true
 }
 
 func (s *Server) handleBinding(packet []byte, src *net.UDPAddr) bool {

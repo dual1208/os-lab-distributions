@@ -1,0 +1,40 @@
+name: campus-link
+
+on:
+  push:
+    paths:
+      - "campus-link/**"
+      - ".github/workflows/campus-link.yml"
+  pull_request:
+    paths:
+      - "campus-link/**"
+      - ".github/workflows/campus-link.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: 1.26.4
+          cache-dependency-path: campus-link/go.sum
+      - name: Unit, race, vet, and build
+        working-directory: campus-link
+        run: |
+          go test -race ./...
+          go vet ./...
+          go build ./...
+      - name: Bounded native fuzzing
+        working-directory: campus-link
+        run: |
+          go test -run='^$' -fuzz=Fuzz -fuzztime=10s ./internal/binding
+          go test -run='^$' -fuzz=Fuzz -fuzztime=10s ./internal/control
+          go test -run='^$' -fuzz=Fuzz -fuzztime=10s ./internal/tun
+      - name: A11/B22 protocol tests
+        working-directory: campus-link
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v

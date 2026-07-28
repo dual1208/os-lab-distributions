@@ -54,6 +54,23 @@ func New(cfg config.Edge, version string) (*Runner, error) {
 	if cfg.Role != "client" && cfg.Role != "server" {
 		return nil, errors.New("role must be client or server")
 	}
+	if cfg.Circuit == "" || cfg.Generation == "" || cfg.RelayAddress == "" || cfg.ControlServerName == "" {
+		return nil, errors.New("circuit, generation, relay address, and control server name are required")
+	}
+	localPrefix, err := netip.ParsePrefix(cfg.Prefix)
+	if err != nil || !localPrefix.Addr().Is4() {
+		return nil, errors.New("valid local IPv4 prefix is required")
+	}
+	remotePrefix, err := netip.ParsePrefix(cfg.RemotePrefix)
+	if err != nil || !remotePrefix.Addr().Is4() || localPrefix.Overlaps(remotePrefix) {
+		return nil, errors.New("valid non-overlapping remote IPv4 prefix is required")
+	}
+	if cfg.Role == "client" && cfg.DataServerName == "" {
+		return nil, errors.New("client data server identity is required")
+	}
+	if cfg.Role == "server" && cfg.DataPeerName == "" {
+		return nil, errors.New("server data peer identity is required")
+	}
 	if cfg.MTU == 0 {
 		cfg.MTU = 1280
 	}
@@ -64,6 +81,9 @@ func New(cfg config.Edge, version string) (*Runner, error) {
 }
 
 func (r *Runner) Run(ctx context.Context) error {
+	statusCtx, cancelStatus := context.WithCancel(ctx)
+	defer cancelStatus()
+	go r.writeStatusLoop(statusCtx)
 	controlTLS, err := clientTLS(r.cfg.ControlCert, r.cfg.ControlKey, r.cfg.ControlCA, r.cfg.ControlServerName)
 	if err != nil {
 		return err
@@ -74,7 +94,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return fmt.Errorf("control dial: %w", err)
 	}
 	defer controlConn.Close()
-	enc, dec := json.NewEncoder(controlConn), json.NewDecoder(controlConn)
+	enc, dec := json.NewEncoder(controlConn), control.NewDecoder(controlConn)
 	reg := control.Register{Type: "register", Site: r.cfg.Site, Generation: r.cfg.Generation, Version: r.version, Circuit: r.cfg.Circuit, Prefix: r.cfg.Prefix, Transports: []string{"quic-datagram"}}
 	if err := enc.Encode(reg); err != nil {
 		return err
@@ -88,7 +108,11 @@ func (r *Runner) Run(ctx context.Context) error {
 		return errors.New("invalid bind token")
 	}
 	r.setState("authenticated", "unbound", "idle", "down")
-	go r.heartbeat(ctx, controlConn, enc)
+	defer r.setState("offline", "unbound", "idle", "down")
+	sessionCtx, cancelSession := context.WithCancel(ctx)
+	defer cancelSession()
+	controlErr := make(chan error, 1)
+	go r.heartbeat(sessionCtx, cancelSession, controlConn, enc, dec, controlErr)
 
 	relayUDP, err := net.ResolveUDPAddr("udp", r.cfg.RelayAddress)
 	if err != nil {
@@ -99,7 +123,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return err
 	}
 	defer udp.Close()
-	if err := bindUDP(ctx, udp, relayUDP, r.cfg.Site, token); err != nil {
+	if err := bindUDP(sessionCtx, udp, relayUDP, r.cfg.Site, token); err != nil {
 		return err
 	}
 	r.setState("authenticated", "bound", "handshaking", "creating")
@@ -115,7 +139,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	quicConfig := &quic.Config{EnableDatagrams: true, KeepAlivePeriod: 10 * time.Second, MaxIdleTimeout: 45 * time.Second}
+	quicConfig := &quic.Config{EnableDatagrams: true, KeepAlivePeriod: 3 * time.Second, MaxIdleTimeout: 12 * time.Second}
 	var conn *quic.Conn
 	if r.cfg.Role == "server" {
 		listener, err := quic.Listen(udp, dataTLS, quicConfig)
@@ -123,12 +147,12 @@ func (r *Runner) Run(ctx context.Context) error {
 			return err
 		}
 		defer listener.Close()
-		conn, err = listener.Accept(ctx)
+		conn, err = listener.Accept(sessionCtx)
 		if err != nil {
 			return err
 		}
 	} else {
-		conn, err = quic.Dial(ctx, udp, relayUDP, dataTLS, quicConfig)
+		conn, err = quic.Dial(sessionCtx, udp, relayUDP, dataTLS, quicConfig)
 		if err != nil {
 			return err
 		}
@@ -138,10 +162,14 @@ func (r *Runner) Run(ctx context.Context) error {
 		return errors.New("peer did not negotiate QUIC DATAGRAM")
 	}
 	r.setState("authenticated", "bound", "active", "ready")
-	return r.bridge(ctx, conn, tunFile)
+	err = r.bridge(sessionCtx, conn, tunFile, controlErr)
+	if err == nil && ctx.Err() == nil && sessionCtx.Err() != nil {
+		err = errors.New("control session lost")
+	}
+	return err
 }
 
-func (r *Runner) bridge(ctx context.Context, conn *quic.Conn, tunFile *os.File) error {
+func (r *Runner) bridge(ctx context.Context, conn *quic.Conn, tunFile *os.File, controlErr <-chan error) error {
 	localPrefix, err := netip.ParsePrefix(r.cfg.Prefix)
 	if err != nil {
 		return err
@@ -159,16 +187,20 @@ func (r *Runner) bridge(ctx context.Context, conn *quic.Conn, tunFile *os.File) 
 				errCh <- err
 				return
 			}
-			if n > r.cfg.MTU || cltun.AuthorizeIPv4(buf[:n], localPrefix, remotePrefix) != nil {
+			if n > r.cfg.MTU {
 				r.dropped.Add(1)
 				continue
 			}
-			if err := conn.SendDatagram(append([]byte(nil), buf[:n]...)); err != nil {
+			total, err := cltun.AuthorizeIPv4(buf[:n], localPrefix, remotePrefix)
+			if err != nil {
+				r.dropped.Add(1)
+				continue
+			}
+			if err := conn.SendDatagram(append([]byte(nil), buf[:total]...)); err != nil {
 				errCh <- err
 				return
 			}
 			r.sent.Add(1)
-			r.writeStatus()
 		}
 	}()
 	go func() {
@@ -178,23 +210,47 @@ func (r *Runner) bridge(ctx context.Context, conn *quic.Conn, tunFile *os.File) 
 				errCh <- err
 				return
 			}
-			if len(packet) > r.cfg.MTU || cltun.AuthorizeIPv4(packet, remotePrefix, localPrefix) != nil {
+			if len(packet) > r.cfg.MTU {
 				r.dropped.Add(1)
 				continue
 			}
-			if _, err := tunFile.Write(packet); err != nil {
+			total, err := cltun.AuthorizeIPv4(packet, remotePrefix, localPrefix)
+			if err != nil {
+				r.dropped.Add(1)
+				continue
+			}
+			if _, err := tunFile.Write(packet[:total]); err != nil {
 				errCh <- err
 				return
 			}
 			r.received.Add(1)
-			r.writeStatus()
 		}
 	}()
 	select {
 	case <-ctx.Done():
-		return nil
+		select {
+		case err := <-controlErr:
+			return err
+		default:
+			return nil
+		}
 	case err := <-errCh:
 		return err
+	case err := <-controlErr:
+		return err
+	}
+}
+
+func (r *Runner) writeStatusLoop(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			r.writeStatus()
+		}
 	}
 }
 
@@ -241,20 +297,41 @@ func bindUDP(ctx context.Context, conn *net.UDPConn, relay *net.UDPAddr, site st
 	return errors.New("UDP tuple binding timed out")
 }
 
-func (r *Runner) heartbeat(ctx context.Context, conn net.Conn, enc *json.Encoder) {
-	ticker := time.NewTicker(15 * time.Second)
+func (r *Runner) heartbeat(ctx context.Context, cancel context.CancelFunc, conn net.Conn, enc *json.Encoder, dec *control.Decoder, errCh chan<- error) {
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
+	var sequence uint64
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			sequence++
 			_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-			if enc.Encode(control.Heartbeat{Type: "heartbeat"}) != nil {
+			if err := enc.Encode(control.Heartbeat{Type: "heartbeat", Sequence: sequence}); err != nil {
+				failControl(cancel, errCh, fmt.Errorf("control heartbeat write: %w", err))
+				return
+			}
+			_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+			var ack control.HeartbeatAck
+			if err := dec.Decode(&ack); err != nil {
+				failControl(cancel, errCh, fmt.Errorf("control heartbeat acknowledgement: %w", err))
+				return
+			}
+			if ack.Type != "heartbeat-ack" || ack.Sequence != sequence {
+				failControl(cancel, errCh, errors.New("invalid control heartbeat acknowledgement"))
 				return
 			}
 		}
 	}
+}
+
+func failControl(cancel context.CancelFunc, errCh chan<- error, err error) {
+	select {
+	case errCh <- err:
+	default:
+	}
+	cancel()
 }
 
 func (r *Runner) dataTLS() (*tls.Config, error) {
@@ -270,11 +347,29 @@ func (r *Runner) dataTLS() (*tls.Config, error) {
 	if r.cfg.Role == "server" {
 		cfg.ClientAuth = tls.RequireAndVerifyClientCert
 		cfg.ClientCAs = pool
+		expected := r.cfg.DataPeerName
+		cfg.VerifyConnection = func(state tls.ConnectionState) error {
+			return verifyPeerIdentity(state.PeerCertificates, expected)
+		}
 	} else {
 		cfg.RootCAs = pool
 		cfg.ServerName = r.cfg.DataServerName
 	}
 	return cfg, nil
+}
+
+func verifyPeerIdentity(certs []*x509.Certificate, expected string) error {
+	if expected == "" {
+		return errors.New("expected data peer identity is required")
+	}
+	if len(certs) != 1 {
+		return errors.New("exactly one data peer certificate is required")
+	}
+	leaf := certs[0]
+	if leaf.VerifyHostname(expected) == nil || leaf.Subject.CommonName == expected {
+		return nil
+	}
+	return fmt.Errorf("data peer identity mismatch")
 }
 
 func clientTLS(certPath, keyPath, caPath, serverName string) (*tls.Config, error) {

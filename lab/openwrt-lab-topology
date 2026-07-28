@@ -36,6 +36,7 @@ up() {
   ip -n oslab-a link set lo up
   ip -n oslab-a link set ep-a up
   ip -n oslab-a address add 10.81.0.10/24 dev ep-a
+  ip -n oslab-a address add 10.81.0.11/24 dev ep-a
   ip -n oslab-a route add default via 10.81.0.1
 
   ip netns add oslab-b
@@ -46,6 +47,7 @@ up() {
   ip -n oslab-b link set lo up
   ip -n oslab-b link set ep-b up
   ip -n oslab-b address add 10.82.0.10/24 dev ep-b
+  ip -n oslab-b address add 10.82.0.22/24 dev ep-b
   ip -n oslab-b route add default via 10.82.0.1
 
   ip netns add oslab-relay

@@ -22,3 +22,18 @@
 - Credential requirements: none.
 - Uninstall: delete the ignored research clone; the Phase-1 binary has no
   dependency on this repository.
+
+## GitHub Actions used for CI
+
+- `actions/checkout` v7.0.1, pinned to commit
+  `3d3c42e5aac5ba805825da76410c181273ba90b1`.
+- `actions/setup-go` v7.0.0, pinned to commit
+  `b7ad1dad31e06c5925ef5d2fc7ad053ef454303e`.
+- Purpose: obtain the repository and an exact Go 1.26.4 toolchain for test,
+  race, vet, fuzz-seed, and build gates on GitHub-hosted Linux runners.
+- Permissions/network: the job has read-only repository contents permission;
+  the actions access GitHub and the official Go toolchain distribution.
+- Verification: versions and commits were resolved through the official
+  GitHub API on 2026-07-28. Workflow references immutable commits.
+- Uninstall: remove `.github/workflows/campus-link.yml`; neither action is
+  installed on a router, relay, Droplet, or workstation.

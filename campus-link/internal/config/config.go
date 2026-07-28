@@ -30,6 +30,7 @@ type Edge struct {
 	ControlKey        string `json:"control_key"`
 	ControlCA         string `json:"control_ca"`
 	DataServerName    string `json:"data_server_name"`
+	DataPeerName      string `json:"data_peer_name"`
 	DataCert          string `json:"data_cert"`
 	DataKey           string `json:"data_key"`
 	DataCA            string `json:"data_ca"`

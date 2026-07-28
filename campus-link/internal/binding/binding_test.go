@@ -31,3 +31,24 @@ func TestChallengeRoundTrip(t *testing.T) {
 		t.Fatal("tampered response accepted")
 	}
 }
+
+func FuzzBindingParsers(f *testing.F) {
+	token := []byte("01234567890123456789012345678901")
+	request, _ := NewRequest("site-a", token)
+	challengePacket, _, _ := NewChallenge()
+	response, _ := NewResponse("site-b", make([]byte, nonceSize), token)
+	f.Add(request)
+	f.Add(challengePacket)
+	f.Add(response)
+	f.Add([]byte{})
+	f.Fuzz(func(t *testing.T, packet []byte) {
+		if len(packet) > 2048 {
+			t.Skip()
+		}
+		_, _ = ParseRequest(packet, token)
+		_, _ = ParseChallenge(packet)
+		_, _, _ = ParseResponse(packet, token)
+		_ = IsReady(packet)
+		_ = IsProtocol(packet)
+	})
+}
