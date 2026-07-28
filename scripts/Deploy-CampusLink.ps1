@@ -52,6 +52,6 @@ foreach ($name in $names) { Remove-Item -LiteralPath (Join-Path $stage $name) -F
 Remove-Item -LiteralPath $stage -Force
 
 & (Join-Path $PSScriptRoot 'Authorize-CampusLinkAliyunIngress.ps1') -AliyunCli $AliyunCli -Confirm:$false
-& ssh "root@$labIp" 'systemctl start campus-link-external.target; systemctl restart --no-block campus-link-edge-a.service campus-link-edge-b.service; /usr/local/libexec/campus-link-smoke-external'
+& ssh "root@$labIp" 'systemctl start campus-link-external.target; systemctl restart campus-link-edge-a.service campus-link-edge-b.service; /usr/local/libexec/campus-link-smoke-external'
 if ($LASTEXITCODE -ne 0) { throw 'External campus-link smoke test failed.' }
 Write-Host 'campus-link external relay lab deployed and smoke-tested.'
