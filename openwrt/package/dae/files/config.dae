@@ -1,0 +1,19 @@
+# Deliberately inert example. Add private nodes and routing rules locally, then
+# set `uci set dae.config.enabled=1; uci commit dae` only after validation.
+global {
+    log_level: info
+    lan_interface: br-lan
+    wan_interface: auto
+    allow_insecure: false
+}
+
+node {
+}
+
+group {
+}
+
+routing {
+    fallback: direct
+}
+
