@@ -164,6 +164,7 @@ def client(args):
         raise ValueError("records, pipeline window, and concurrency must be positive")
     if not 0 <= args.bulk_bytes <= MAX_PAYLOAD or args.record_bytes < 0:
         raise ValueError("payload size is outside the bounded range")
+    started = time.monotonic()
     with open_client(args.source, args.destination, args.tcp_port) as conn:
         for first in range(1, args.records + 1, args.pipeline_window):
             last = min(first + args.pipeline_window, args.records + 1)
@@ -173,6 +174,8 @@ def client(args):
             ]
             for sequence, digest in zip(range(first, last), expected):
                 read_response(conn, sequence, digest)
+    print(f"PHASE records=pass seconds={time.monotonic() - started:.3f}", flush=True)
+    started = time.monotonic()
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         futures = [
             pool.submit(one_flow, args.source, args.destination, args.tcp_port, 1_000_000 + sequence)
@@ -180,10 +183,16 @@ def client(args):
         ]
         for future in futures:
             future.result()
+    print(f"PHASE concurrency=pass seconds={time.monotonic() - started:.3f}", flush=True)
+    started = time.monotonic()
     with open_client(args.source, args.destination, args.tcp_port) as conn:
         exchange(conn, 2_000_000, args.bulk_bytes)
+    print(f"PHASE bulk=pass seconds={time.monotonic() - started:.3f}", flush=True)
+    started = time.monotonic()
     with open_client(args.source, args.destination, args.tcp_port) as conn:
         exchange(conn, 3_000_000, 4096, half_close=True)
+    print(f"PHASE half_close=pass seconds={time.monotonic() - started:.3f}", flush=True)
+    started = time.monotonic()
     udp_received = udp_probe(
         args.source,
         args.destination,
@@ -192,6 +201,7 @@ def client(args):
         args.udp_interval_ms,
         args.udp_wait_seconds,
     )
+    print(f"PHASE udp=measured seconds={time.monotonic() - started:.3f}", flush=True)
     print(
         f"PASS source={args.source} destination={args.destination} records={args.records} "
         f"concurrency={args.concurrency} bulk_bytes={args.bulk_bytes} "
@@ -214,7 +224,7 @@ def parser():
     probe.add_argument("--udp-port", type=int, default=18081)
     probe.add_argument("--records", type=int, default=10_000)
     probe.add_argument("--record-bytes", type=int, default=128)
-    probe.add_argument("--pipeline-window", type=int, default=256)
+    probe.add_argument("--pipeline-window", type=int, default=1024)
     probe.add_argument("--concurrency", type=int, default=100)
     probe.add_argument("--bulk-bytes", type=int, default=32 * 1024 * 1024)
     probe.add_argument("--udp-packets", type=int, default=1000)
