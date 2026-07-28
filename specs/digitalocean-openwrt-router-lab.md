@@ -141,6 +141,31 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 - The lab may model the proposed campus-link design before that protocol is
   implemented, but must label simulated/stub behavior honestly.
 
+### `campus-link` with the external `gz` relay
+
+- Add a narrow Phase-1 prototype matching section 4 of `2routers.md`: two
+  isolated edge processes for the `10.81.0.0/24` and `10.82.0.0/24` sites,
+  outward authenticated TCP/443 control sessions, authenticated UDP tuple
+  binding, a blind UDP/443 relay on `gz`, and end-to-end TLS 1.3 QUIC DATAGRAM
+  transport between the edges. HTTP/3 CONNECT-IP framing may follow after the
+  QUIC DATAGRAM path is verified; do not label a raw QUIC context as H3.
+- Keep the current local relay namespace as a deterministic offline lesson and
+  add the external-relay topology as an explicit advanced lab. Its edge
+  processes must run in separate Linux network namespaces so the host kernel
+  cannot route directly between the two site links and bypass `gz`.
+- Use distinct control-plane and data-plane trust domains. `gz` may hold its
+  control server key, the public control CA, circuit metadata, and ephemeral
+  bind tokens. It must never receive either edge's data-plane private key or a
+  data-plane CA signing key. All generated keys remain outside Git.
+- Install the relay through `ssh gz` only after that alias resolves, the remote
+  OS/user is identified, and read-only inspection proves TCP/443 and UDP/443
+  are available or intentionally shared by the new service. Never stop,
+  replace, or reconfigure an existing listener without new user direction.
+- Run the relay as a dedicated unprivileged account under systemd with only the
+  capability needed to bind privileged ports. Provide exact status, uninstall,
+  and log commands; logs must exclude keys, tokens, LAN packet bodies, and raw
+  public addresses.
+
 ### GitHub durability
 
 - Connect this existing workspace safely to
@@ -231,6 +256,12 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   each start so a failed restart can never display a stale `STATUS=pass`.
 - Every tutorial command is tested on the provisioned host and is stored in
   GitHub with expected-output patterns rather than private raw output.
+- When `gz` access is available, an external-relay smoke test proves both mTLS
+  control sessions authenticated, both UDP tuples were challenged and bound,
+  authorized traffic crossed end-to-end QUIC, a forbidden flow remained
+  blocked, and a bounded capture on `gz` contained no plaintext inner LAN
+  packet. Relay failure must withdraw the advanced-lab routes without breaking
+  SSH access or the offline lab.
 
 ### Backup and handoff
 
@@ -258,6 +289,10 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   authorization.
 - If the GitHub push or release upload fails, retain verified cloud artifacts
   and retry publication without rebuilding.
+- If `ssh gz` does not resolve, authentication fails, or either 443 listener is
+  already owned, stop external deployment, preserve the offline two-router lab,
+  and request the missing alias/authority rather than guessing or taking over a
+  service.
 
 ## Apply plan
 
