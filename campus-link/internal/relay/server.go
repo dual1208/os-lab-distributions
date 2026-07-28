@@ -23,6 +23,7 @@ import (
 
 type leg struct {
 	owner            uint64
+	control          net.Conn
 	token            []byte
 	generation       string
 	online           bool
@@ -33,14 +34,15 @@ type leg struct {
 }
 
 type Server struct {
-	cfg       config.Relay
-	mu        sync.Mutex
-	legs      map[string]*leg
-	forwardA  uint64
-	forwardB  uint64
-	dropped   uint64
-	nextOwner uint64
-	udp       *net.UDPConn
+	cfg         config.Relay
+	mu          sync.Mutex
+	legs        map[string]*leg
+	forwardA    uint64
+	forwardB    uint64
+	dropped     uint64
+	nextOwner   uint64
+	established bool
+	udp         *net.UDPConn
 }
 
 const maxOuterDatagramSize = 2048
@@ -144,7 +146,7 @@ func (s *Server) handleControl(raw net.Conn) {
 		return
 	}
 	s.mu.Lock()
-	owner := s.activateLegLocked(identity, reg.Generation, token)
+	owner := s.activateLegLocked(identity, reg.Generation, token, conn)
 	s.writeStatusLocked()
 	s.mu.Unlock()
 	if err := enc.Encode(control.Registered{Type: "registered", BindToken: hex.EncodeToString(token)}); err != nil {
@@ -218,14 +220,30 @@ func (s *Server) spliceUDP(ctx context.Context) error {
 	}
 }
 
-func (s *Server) activateLegLocked(site, generation string, token []byte) uint64 {
+func (s *Server) activateLegLocked(site, generation string, token []byte, conn net.Conn) uint64 {
+	if s.legs[site].online {
+		_ = s.legs[site].control.Close()
+		*s.legs[site] = leg{}
+	}
+	if s.established {
+		peer := otherSite(site)
+		if s.legs[peer].online {
+			_ = s.legs[peer].control.Close()
+			*s.legs[peer] = leg{}
+		}
+		s.established = false
+	}
 	s.nextOwner++
 	owner := s.nextOwner
 	*s.legs[site] = leg{
 		owner:      owner,
+		control:    conn,
 		token:      append([]byte(nil), token...),
 		generation: generation,
 		online:     true,
+	}
+	if s.legs["site-a"].online && s.legs["site-b"].online {
+		s.established = true
 	}
 	return owner
 }
@@ -236,7 +254,22 @@ func (s *Server) clearLegLocked(site string, owner uint64) bool {
 		return false
 	}
 	*l = leg{}
+	if s.established {
+		peer := otherSite(site)
+		if s.legs[peer].online {
+			_ = s.legs[peer].control.Close()
+			*s.legs[peer] = leg{}
+		}
+		s.established = false
+	}
 	return true
+}
+
+func otherSite(site string) string {
+	if site == "site-a" {
+		return "site-b"
+	}
+	return "site-a"
 }
 
 func (s *Server) handleBinding(packet []byte, src *net.UDPAddr) bool {
