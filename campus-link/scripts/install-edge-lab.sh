@@ -61,9 +61,12 @@ EOF
 chmod 0600 "${ROOT}/edge-a.json" "${ROOT}/edge-b.json"
 ip -n oslab-a address show dev ep-a | grep -q '10.81.0.11/24' || ip -n oslab-a address add 10.81.0.11/24 dev ep-a
 ip -n oslab-b address show dev ep-b | grep -q '10.82.0.22/24' || ip -n oslab-b address add 10.82.0.22/24 dev ep-b
-/usr/local/libexec/openwrt-lab-console-config
+install -d -m 0700 /var/lib/campus-link
+if [[ ! -f /var/lib/campus-link/a11-b22-firewall.complete ]]; then
+  /usr/local/libexec/openwrt-lab-console-config
+  touch /var/lib/campus-link/a11-b22-firewall.complete
+fi
 systemctl daemon-reload
 systemctl enable campus-link-external.target
-install -d -m 0700 /var/lib/campus-link
 printf '%s\n' "${version}" > /var/lib/campus-link/installed-edge-version
 trap - ERR
