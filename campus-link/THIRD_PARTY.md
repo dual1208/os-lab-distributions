@@ -23,6 +23,29 @@
 - Uninstall: delete the ignored research clone; the Phase-1 binary has no
   dependency on this repository.
 
+## frp xtcp (inspected donor; forked, not copied or linked)
+
+- Upstream: `https://github.com/fatedier/frp`
+- User fork: `https://github.com/dual1208/frp`
+- Branch/revision inspected: `dev` at
+  `5c6d761c1287e6153f07b824fb6d71b96ee598fe`
+- License: Apache-2.0
+- Purpose: reference architecture for STUN-assisted endpoint discovery,
+  authenticated rendezvous, server-selected NAT-hole behavior, direct QUIC/KCP
+  sessions, retry scoring, and relayed fallback.
+- Network behavior: the inspected `xtcp` design keeps `frps` in the control
+  path while established bulk sessions run directly between clients. It uses
+  configured STUN servers and sends authenticated UDP probes to peer candidate
+  addresses. No FRP binary is installed or executed by campus-link.
+- Credentials/permissions: GitHub authentication was used only to create the
+  user's fork; source inspection itself requires no credentials. A deployed FRP
+  service would require its own configuration and secret key, but none was
+  created.
+- Verification: GitHub reports the fork parent as `fatedier/frp`, default branch
+  `dev`, and the pinned fork commit above on 2026-07-28.
+- Uninstall: campus-link has no installed FRP component. Removing the fork would
+  require a separate destructive GitHub action and is intentionally excluded.
+
 ## GitHub Actions used for CI
 
 - `actions/checkout` v7.0.1, pinned to commit
