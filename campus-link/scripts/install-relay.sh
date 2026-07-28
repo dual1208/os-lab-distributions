@@ -5,16 +5,28 @@ readonly STAGE=${1:?usage: install-relay.sh STAGING_DIRECTORY}
 readonly ROOT=/etc/campus-link
 
 [[ ${EUID} -eq 0 ]]
-if ss -H -ltn '( sport = :443 )' | grep -q . || ss -H -lun '( sport = :443 )' | grep -q .; then
-  echo 'TCP or UDP port 443 is already owned; refusing installation.' >&2
-  exit 3
-fi
 for required in campus-link-relay relay-control.crt relay-control.key control-ca.crt; do
   [[ -s ${STAGE}/${required} ]]
 done
 if find "${STAGE}" -maxdepth 1 -type f \( -name '*data*' -o -name 'site-*' -o -name '*-ca.key' \) | grep -q .; then
   echo 'Data-plane or CA-signing private material found in relay stage.' >&2
   exit 4
+fi
+
+restore_prior_service=0
+if systemctl is-active --quiet campus-link-relay.service; then
+  systemctl stop campus-link-relay.service
+  restore_prior_service=1
+fi
+restore_on_error() {
+  if [[ ${restore_prior_service} -eq 1 ]]; then
+    systemctl start campus-link-relay.service || true
+  fi
+}
+trap restore_on_error ERR
+if ss -H -ltn '( sport = :443 )' | grep -q . || ss -H -lun '( sport = :443 )' | grep -q .; then
+  echo 'TCP or UDP port 443 is owned by another service; refusing installation.' >&2
+  exit 3
 fi
 
 getent group campus-link >/dev/null || groupadd --system campus-link
@@ -33,3 +45,4 @@ install -m 0644 "${STAGE}/campus-link-relay.service" /etc/systemd/system/campus-
 systemctl daemon-reload
 systemctl enable --now campus-link-relay.service
 systemctl is-active --quiet campus-link-relay.service
+trap - ERR

@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$AliyunCli = 'aliyun'
+)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -10,9 +12,7 @@ if (-not $labIp) { throw 'The lab host has no recorded public IPv4 address.' }
 $gzConfig = @{}
 & ssh -G gz | ForEach-Object {
     $pair = $_ -split '\s+', 2
-    if ($pair.Count -eq 2 -and -not $gzConfig.ContainsKey($pair[0])) {
-        $gzConfig[$pair[0]] = $pair[1]
-    }
+    if ($pair.Count -eq 2 -and -not $gzConfig.ContainsKey($pair[0])) { $gzConfig[$pair[0]] = $pair[1] }
 }
 if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the gz SSH configuration.' }
 $relayAddress = $gzConfig.hostname
@@ -20,9 +20,8 @@ if (-not $relayAddress -or $relayAddress -notmatch '^[A-Za-z0-9.-]+$') {
     throw 'The gz HostName is not a safe IPv4 address or DNS name for the edge configuration.'
 }
 
-& ssh gz 'set -eu; ! ss -H -ltn "sport = :443" | grep -q .; ! ss -H -lun "sport = :443" | grep -q .'
-if ($LASTEXITCODE -ne 0) { throw 'gz TCP/443 or UDP/443 became occupied; deployment stopped.' }
-
+& ssh gz 'set -eu; if systemctl is-active --quiet campus-link-relay.service; then exit 0; fi; ! ss -H -ltn "sport = :443" | grep -q .; ! ss -H -lun "sport = :443" | grep -q .'
+if ($LASTEXITCODE -ne 0) { throw 'gz TCP/443 or UDP/443 is owned by another service.' }
 $edgeCommand = "set -eu; export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0=/srv/openwrt-lab/repo; cd /srv/openwrt-lab/repo; git pull --ff-only; ./campus-link/scripts/install-edge-lab.sh /srv/openwrt-lab/repo '$relayAddress'"
 & ssh "root@$labIp" $edgeCommand
 if ($LASTEXITCODE -ne 0) { throw 'Edge build or installation failed.' }
@@ -49,7 +48,10 @@ foreach ($name in $names) {
 }
 & ssh gz 'set -eu; /bin/bash /tmp/campus-link-stage/install-relay.sh /tmp/campus-link-stage; rm -f /tmp/campus-link-stage/campus-link-relay /tmp/campus-link-stage/relay-control.crt /tmp/campus-link-stage/relay-control.key /tmp/campus-link-stage/control-ca.crt /tmp/campus-link-stage/campus-link-relay.service /tmp/campus-link-stage/install-relay.sh; rmdir /tmp/campus-link-stage'
 if ($LASTEXITCODE -ne 0) { throw 'Relay installation failed.' }
+foreach ($name in $names) { Remove-Item -LiteralPath (Join-Path $stage $name) -Force }
+Remove-Item -LiteralPath $stage -Force
 
-& ssh "root@$labIp" 'systemctl start campus-link-external.target; /usr/local/libexec/campus-link-smoke-external'
+& (Join-Path $PSScriptRoot 'Authorize-CampusLinkAliyunIngress.ps1') -AliyunCli $AliyunCli -Confirm:$false
+& ssh "root@$labIp" 'systemctl start campus-link-external.target; systemctl restart --no-block campus-link-edge-a.service campus-link-edge-b.service; /usr/local/libexec/campus-link-smoke-external'
 if ($LASTEXITCODE -ne 0) { throw 'External campus-link smoke test failed.' }
 Write-Host 'campus-link external relay lab deployed and smoke-tested.'

@@ -64,3 +64,21 @@
   Ninja and pass an explicit `NINJA=... -j2` override while retaining four
   outer make jobs; an intentional stop also proved the corrected trap writes
   `EXIT=1`.
+
+## 2026-07-28 — A listening UDP socket does not prove cloud ingress
+
+- Symptom: both TLS 1.3 control sessions authenticated to `gz:443`, but both
+  edges timed out waiting for their UDP binding challenge even though the relay
+  owned UDP/443 and host firewalls were inactive.
+- Root cause: the Aliyun security group admitted TCP/443 but had no UDP/443
+  ingress rule, so the packets never reached the instance kernel.
+- Decisive evidence: a bounded `tcpdump` saw zero UDP/443 packets before the
+  provider rule; after metadata/API/SSH identity convergence and one edge-host
+  `/32` UDP/443 rule, packets appeared and both tuples bound immediately.
+- Reusable lesson: verify transport boundaries in order—edge routing/NAT, cloud
+  perimeter, host firewall, socket, then protocol. Mirror an existing safe rule
+  shape, constrain source scope, record exact rollback privately, and never
+  widen to `0.0.0.0/0` merely to make a lab pass.
+- Verification: the routed allow/deny smoke and no-inner-header capture passed;
+  relay stop withdrew both TUN routes while SSH remained reachable, and restart
+  restored the path.

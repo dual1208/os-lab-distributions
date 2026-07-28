@@ -5,9 +5,10 @@ observe, and reset. Two real OpenWrt x86-64 guests run under QEMU/KVM. Each has
 its own LAN, and a deliberately simple Linux namespace forwards packets between
 their transit links.
 
-It models routing, firewalling, failure, and a blind relay. It does **not** yet
-implement the proposed campus-link QUIC/TLS protocol, and it does not emulate
-the Linksys E8450's MediaTek hardware.
+This document starts with the deterministic offline plaintext-relay lessons. The
+advanced companion in `docs/CAMPUS-LINK-LAB.md` replaces only that relay with
+two isolated edges, authenticated control, and end-to-end QUIC/TLS through
+`gz`. Neither mode emulates the Linksys E8450's MediaTek hardware.
 
 ```text
 endpoint A          router A          blind relay          router B          endpoint B
@@ -152,9 +153,9 @@ ip link set tap-a-transit up
 
 Systemd remains healthy while the data plane is broken. A production control
 plane must therefore report path health rather than merely “the daemon is
-running.” In the future campus-link design, mTLS presence and QUIC packet
-delivery will be separate states. Here that control plane remains an explicit
-stub.
+running.” In this offline mode the control plane remains an explicit stub. The advanced
+companion reports mTLS presence, authenticated UDP binding, QUIC state, and
+packet counters separately so you can compare supervisor health with path health.
 
 ## DNS observation
 
@@ -183,4 +184,3 @@ smoke test:
 
 The base image, build artifacts, repository, cloud host, and unrelated droplet
 are untouched.
-
