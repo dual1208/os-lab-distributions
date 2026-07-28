@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+systemctl is-active openwrt-lab.service
+cat /run/openwrt-lab/smoke.status
+printf '\nEndpoint A route to endpoint B:\n'
+ip netns exec oslab-a ip route get 10.82.0.10
+printf '\nRelay routes:\n'
+ip -n oslab-relay route
+printf '\nLuCI loopback listener:\n'
+ss -lnt '( sport = :18443 )'
+

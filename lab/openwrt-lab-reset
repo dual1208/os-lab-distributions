@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+readonly LAB_ROOT=/srv/openwrt-lab/runtime
+systemctl stop openwrt-lab.service
+for image in "${LAB_ROOT}/router-a.qcow2" "${LAB_ROOT}/router-b.qcow2"; do
+  case ${image} in
+    /srv/openwrt-lab/runtime/router-a.qcow2|/srv/openwrt-lab/runtime/router-b.qcow2)
+      rm -f -- "${image}"
+      ;;
+    *) echo "unsafe reset target: ${image}" >&2; exit 2 ;;
+  esac
+done
+systemctl start openwrt-lab.service
+cat /run/openwrt-lab/smoke.status
+

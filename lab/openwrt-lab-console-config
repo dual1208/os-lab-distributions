@@ -3,6 +3,22 @@ import os
 import socket
 import time
 
+
+def read_until(sock, needles, deadline):
+    data = b""
+    while time.time() < deadline:
+        try:
+            chunk = sock.recv(8192)
+            if not chunk:
+                raise ConnectionError("serial console closed")
+            data += chunk
+        except TimeoutError:
+            continue
+        if any(needle in data for needle in needles):
+            return data
+    raise TimeoutError(f"console did not emit one of {needles!r}")
+
+
 secret_path = "/etc/openwrt-lab/admin.secret"
 with open(secret_path, "rb") as handle:
     password = handle.read().strip()
@@ -24,19 +40,25 @@ for role in ("a", "b"):
                     sock.sendall(b"\n")
                 if b"root@router-" in transcript or b"root@OpenWrt" in transcript:
                     break
+                if b" login:" in transcript:
+                    sock.sendall(b"root\n")
+                    read_until(sock, (b"Password:",), deadline)
+                    sock.sendall(password + b"\n")
+                    transcript = read_until(sock, (b"root@router-", b"root@OpenWrt"), deadline)
+                    break
             else:
                 raise TimeoutError("console shell did not become ready")
             sock.sendall(b"passwd\n")
-            time.sleep(0.4)
+            read_until(sock, (b"New password",), deadline)
             sock.sendall(password + b"\n")
-            time.sleep(0.4)
+            read_until(sock, (b"Retype password",), deadline)
             sock.sendall(password + b"\n")
-            time.sleep(0.6)
-            sock.sendall(b"/etc/init.d/uhttpd restart\n")
+            read_until(sock, (b"password for root changed", b"Password for root changed"), deadline)
+            sock.sendall(b"/etc/init.d/uhttpd restart; echo OSLAB_CONFIGURED\n")
+            read_until(sock, (b"OSLAB_CONFIGURED",), deadline)
             sock.close()
             break
         except (FileNotFoundError, ConnectionRefusedError, TimeoutError):
             time.sleep(2)
     else:
         raise SystemExit(f"router {role} console configuration timed out")
-
