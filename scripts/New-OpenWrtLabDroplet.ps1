@@ -11,7 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $stateDir = Join-Path $repoRoot '.state'
-$stateFile = Join-Path $stateDir 'droplet.json'
+$stateFile = Join-Path $stateDir ("{0}.json" -f $Name)
 $cloudInit = Join-Path $repoRoot 'cloud\cloud-init.yaml'
 
 if (-not (Test-Path -LiteralPath $cloudInit)) {
@@ -52,7 +52,7 @@ doctl compute droplet create $Name `
     --user-data-file $cloudInit `
     --enable-monitoring `
     --wait `
-    --format ID,Name,Status,Region,SizeSlug | Out-Host
+    --format ID,Name,Status,Region,Memory,VCPUs,Disk | Out-Host
 
 $created = @(doctl compute droplet list -o json | ConvertFrom-Json |
     Where-Object name -eq $Name)
@@ -62,4 +62,3 @@ if ($created.Count -ne 1 -or $created[0].status -ne 'active') {
 
 $created[0] | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $stateFile
 Write-Host "Private runtime state saved under ignored path: $stateFile"
-

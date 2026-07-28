@@ -5,8 +5,8 @@ Date: 2026-07-28
 
 ## Objective
 
-Use the user's expiring DigitalOcean promotional credit for one bounded,
-high-capability builder/lab host that:
+Use the user's expiring DigitalOcean promotional credit for two bounded,
+high-capability builder/lab hosts that:
 
 1. builds a complete, reproducible Linksys E8450 UBI firmware bundle from
    OpenWrt `v25.12.5` commit
@@ -37,6 +37,9 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   largest available premium plan is `s-4vcpu-8gb-intel`: 4 vCPU, 8 GiB RAM,
   160 GiB SSD, $0.08333/hour, capped at $56/month. The account limit is three
   droplets and one unrelated existing droplet must remain untouched.
+- DigitalOcean's current Ubuntu 24.04 image does not provide the historical
+  `qemu-kvm` package name. Install `qemu-system-x86` and `qemu-utils`, then add
+  the unprivileged lab account to the `kvm` group after package installation.
 - QEMU does not model the Linksys E8450's MediaTek MT7622 SoC, switch, NAND/UBI
   layout, radios, or boot chain. The E8450 firmware therefore cannot be
   honestly booted as a virtual E8450. The interactive lab will run a separate
@@ -46,16 +49,18 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 
 ## Scope
 
-### Cloud host
+### Cloud hosts
 
-- Create exactly one Ubuntu 24.04 LTS Droplet named `openwrt-lab` in `sfo3`
-  using `s-4vcpu-8gb-intel` and an existing account SSH public key.
+- Create exactly two Ubuntu 24.04 LTS Droplets named `openwrt-lab` and
+  `openwrt-lab-2` in `sfo3`, each using `s-4vcpu-8gb-intel` and an existing
+  account SSH public key. The first builds E8450 firmware; the second builds
+  and hosts the x86-64 interactive and two-router labs in parallel.
 - Tag it `os-lab`, `openwrt-build`, and `temporary`.
 - Install only the build, QEMU/KVM, container/network-namespace, verification,
   and Git tooling required by this contract.
 - Keep build work under `/srv/openwrt-lab`; use a non-root `builder` account for
   compilation and root only for host networking/KVM/service setup.
-- Record the Droplet ID and public address only in ignored local state, never
+- Record the Droplet IDs and public addresses only in ignored local state, never
   in Git, release notes, logs, or tutorials.
 
 ### Linksys firmware bundle
@@ -138,8 +143,9 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 
 ### Provisioning and cost
 
-- The exact new Droplet is `openwrt-lab`, size `s-4vcpu-8gb-intel`, region
-  `sfo3`, Ubuntu 24.04 LTS, tagged as specified, and accessible by SSH key.
+- The exact new Droplets are `openwrt-lab` and `openwrt-lab-2`, each size
+  `s-4vcpu-8gb-intel`, region `sfo3`, Ubuntu 24.04 LTS, tagged as specified,
+  and accessible by SSH key.
 - A sanitized cost record states the hourly rate, creation time, and estimated
   maximum cost through 2026-07-31 without exposing account data.
 - The unrelated pre-existing Droplet remains unchanged.
@@ -209,17 +215,18 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 
 1. Connect the workspace to the existing GitHub repository, preserve ignored
    secrets, commit/push this contract, and add versioned build/lab scripts.
-2. Create the exact premium Basic Droplet, verify inventory and SSH, install
-   pinned prerequisites, and record sanitized before-state/cost evidence.
+2. Create the two exact premium Basic Droplets, verify inventory and SSH,
+   install pinned prerequisites, and record sanitized before-state/cost
+   evidence.
 3. Build and verify the E8450 dae bundle with Go 1.26.4.
 4. Build and boot the x86-64 lab image; configure loopback-only LuCI forwarding
    and durable supervision.
 5. Instantiate and test the two-router exercises; write the beginner-safe
    tutorial from observed results.
 6. Publish the verified prerelease and push sanitized verification/provenance.
-7. Leave the lab running for the user's month-end study window unless the user
-   asks for immediate cleanup; report the exact live hourly burn and destroy
-   command.
+7. Leave both hosts running for the user's month-end study window unless the
+   user asks for immediate cleanup; report the exact live hourly burn and
+   destroy commands.
 
 ## Rollback
 
@@ -229,7 +236,6 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   unpublished verified artifacts.
 - Delete the new prerelease with
   `gh release delete <tag> --repo dual1208/os-lab-distributions --cleanup-tag`.
-- Destroy only the recorded `openwrt-lab` Droplet ID with
-  `doctl compute droplet delete <id> --force`, then poll inventory until that ID
-  is absent and the unrelated Droplet is still present.
-
+- Destroy only the two recorded lab Droplet IDs with one exact-ID command per
+  host, then poll inventory until both are absent and the unrelated Droplet is
+  still present.

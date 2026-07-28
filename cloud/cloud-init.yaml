@@ -24,7 +24,7 @@ packages:
   - libssl-dev
   - python3
   - python3-setuptools
-  - qemu-kvm
+  - qemu-system-x86
   - qemu-utils
   - rsync
   - subversion
@@ -68,6 +68,7 @@ write_files:
 
 runcmd:
   - [sysctl, --system]
+  - [usermod, -aG, kvm, builder]
   - [ufw, default, deny, incoming]
   - [ufw, default, allow, outgoing]
   - [ufw, allow, OpenSSH]
@@ -77,4 +78,3 @@ runcmd:
   - [bash, -lc, 'git clone --depth=1 https://github.com/dual1208/os-lab-distributions.git /srv/openwrt-lab/repo && chown -R builder:builder /srv/openwrt-lab/repo']
 
 final_message: "OpenWrt lab host bootstrap finished"
-
