@@ -40,6 +40,10 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 - DigitalOcean's current Ubuntu 24.04 image does not provide the historical
   `qemu-kvm` package name. Install `qemu-system-x86` and `qemu-utils`, then add
   the unprivileged lab account to the `kvm` group after package installation.
+- OpenWrt defaults `KERNEL_DEBUG_INFO_REDUCED=y`; its BTF option depends on
+  full debug information. The dae builds must explicitly disable reduced debug
+  info before selecting `KERNEL_DEBUG_INFO_BTF`, then verify BTF survived
+  `make defconfig`.
 - QEMU does not model the Linksys E8450's MediaTek MT7622 SoC, switch, NAND/UBI
   layout, radios, or boot chain. The E8450 firmware therefore cannot be
   honestly booted as a virtual E8450. The interactive lab will run a separate
