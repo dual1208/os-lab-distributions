@@ -95,7 +95,7 @@ def serve(args):
 
 def open_client(source, destination, port):
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    conn.settimeout(30)
+    conn.settimeout(120)
     conn.bind((source, 0))
     conn.connect((destination, port))
     return conn
