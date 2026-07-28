@@ -26,7 +26,7 @@ for trial in $(seq 1 "${trials}"); do
   started=$(date +%s%3N)
   deadline=$((started + 30000))
   withdrawn=0
-  systemctl kill --signal=KILL campus-link-edge-a.service
+  systemctl kill --kill-whom=main --signal=KILL campus-link-edge-a.service
   while (( $(date +%s%3N) < deadline )); do
     if ! ip -n campus-a route show 10.82.0.0/24 | grep -q 'dev cl0'; then
       withdrawn=1
