@@ -35,6 +35,7 @@ for trial in $(seq 1 "${trials}"); do
        ip -n campus-a route show 10.82.0.0/24 | grep -q 'dev cl0' && health; then
       finished=$(date +%s%3N)
       printf '%s\t%s\t%s\n' "${trial}" "$((finished - started))" "${withdrawn}" >> "${RESULTS}"
+      sleep 2
       continue 2
     fi
     sleep 0.2
