@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$names = @('openwrt-lab', 'openwrt-lab-2')
+$names = @('openwrt-lab', 'openwrt-lab-2', 'openwrt-lab-3')
 $hourly = 0.08333
 foreach ($name in $names) {
     $state = Get-Content -Raw -LiteralPath (Join-Path $repoRoot ".state\$name.json") | ConvertFrom-Json
@@ -19,4 +19,3 @@ foreach ($name in $names) {
     }
 }
 Write-Host ('Combined live rate: ${0:N5}/hour' -f ($hourly * $names.Count))
-

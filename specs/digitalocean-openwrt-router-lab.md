@@ -5,7 +5,7 @@ Date: 2026-07-28
 
 ## Objective
 
-Use the user's expiring DigitalOcean promotional credit for two bounded,
+Use the user's expiring DigitalOcean promotional credit for three bounded,
 high-capability builder/lab hosts that:
 
 1. builds a complete, reproducible Linksys E8450 UBI firmware bundle from
@@ -36,7 +36,12 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 - The DigitalOcean account currently exposes only Basic Droplet sizes. The
   largest available premium plan is `s-4vcpu-8gb-intel`: 4 vCPU, 8 GiB RAM,
   160 GiB SSD, $0.08333/hour, capped at $56/month. The account limit is three
-  droplets and one unrelated existing droplet must remain untouched.
+  droplets. The user explicitly authorized retirement of the six-month-old
+  1-vCPU legacy Droplet to free the third slot. Before deletion it was verified
+  as created 2026-01-01, 1 GiB RAM, 25 GiB disk, with no attached volumes or
+  tags. The account API later reported status `warning`; creation must still
+  use only an actually available supported size and must not bypass provider
+  controls.
 - DigitalOcean's current Ubuntu 24.04 image does not provide the historical
   `qemu-kvm` package name. Install `qemu-system-x86` and `qemu-utils`, then add
   the unprivileged lab account to the `kvm` group after package installation.
@@ -59,10 +64,12 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 
 ### Cloud hosts
 
-- Create exactly two Ubuntu 24.04 LTS Droplets named `openwrt-lab` and
-  `openwrt-lab-2` in `sfo3`, each using `s-4vcpu-8gb-intel` and an existing
-  account SSH public key. The first builds E8450 firmware; the second builds
-  and hosts the x86-64 interactive and two-router labs in parallel.
+- Create exactly three Ubuntu 24.04 LTS Droplets named `openwrt-lab`,
+  `openwrt-lab-2`, and `openwrt-lab-3` in `sfo3`, each using
+  `s-4vcpu-8gb-intel` and an existing account SSH public key. The first builds
+  E8450 firmware; the second builds and hosts the x86-64 interactive and
+  two-router labs; the third performs an independent clean E8450 build for
+  reproducibility and then serves as relay/verification capacity.
 - Tag it `os-lab`, `openwrt-build`, and `temporary`.
 - Install only the build, QEMU/KVM, container/network-namespace, verification,
   and Git tooling required by this contract.
@@ -137,8 +144,9 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 - Never print, commit, upload, or embed DigitalOcean/GitHub tokens, private SSH
   keys, lab passwords, public IP addresses, raw machine inventories, provider
   account identifiers, or router secrets.
-- Preserve the unrelated existing DigitalOcean droplet and all unrelated Git
-  working-tree changes.
+- Preserve every DigitalOcean resource except the exact legacy Droplet whose
+  retirement is explicitly authorized and verified above, and preserve all
+  unrelated Git working-tree changes.
 - No LuCI, SSH password authentication, QEMU monitor, or lab management socket
   may listen on a public interface. Public SSH remains key-only.
 - Do not claim that an x86-64 QEMU image validates the E8450 kernel, drivers,
@@ -154,12 +162,14 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 
 ### Provisioning and cost
 
-- The exact new Droplets are `openwrt-lab` and `openwrt-lab-2`, each size
+- The exact new Droplets are `openwrt-lab`, `openwrt-lab-2`, and
+  `openwrt-lab-3`, each size
   `s-4vcpu-8gb-intel`, region `sfo3`, Ubuntu 24.04 LTS, tagged as specified,
   and accessible by SSH key.
 - A sanitized cost record states the hourly rate, creation time, and estimated
   maximum cost through 2026-07-31 without exposing account data.
-- The unrelated pre-existing Droplet remains unchanged.
+- The explicitly authorized legacy Droplet is absent after a converged exact-ID
+  deletion, and no volume was targeted or removed.
 
 ### Firmware
 
@@ -226,16 +236,17 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 
 1. Connect the workspace to the existing GitHub repository, preserve ignored
    secrets, commit/push this contract, and add versioned build/lab scripts.
-2. Create the two exact premium Basic Droplets, verify inventory and SSH,
-   install pinned prerequisites, and record sanitized before-state/cost
-   evidence.
+2. Create the first two exact premium Basic Droplets. After explicit user
+   authorization, verify and retire the exact volume-free legacy Droplet, wait
+   for inventory convergence, then create the third premium Basic Droplet.
+   Verify all SSH/bootstrap states and record sanitized cost evidence.
 3. Build and verify the E8450 dae bundle with Go 1.26.4.
 4. Build and boot the x86-64 lab image; configure loopback-only LuCI forwarding
    and durable supervision.
 5. Instantiate and test the two-router exercises; write the beginner-safe
    tutorial from observed results.
 6. Publish the verified prerelease and push sanitized verification/provenance.
-7. Leave both hosts running for the user's month-end study window unless the
+7. Leave all three hosts running for the user's month-end study window unless the
    user asks for immediate cleanup; report the exact live hourly burn and
    destroy commands.
 
@@ -247,6 +258,5 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   unpublished verified artifacts.
 - Delete the new prerelease with
   `gh release delete <tag> --repo dual1208/os-lab-distributions --cleanup-tag`.
-- Destroy only the two recorded lab Droplet IDs with one exact-ID command per
-  host, then poll inventory until both are absent and the unrelated Droplet is
-  still present.
+- Destroy only the three recorded lab Droplet IDs with one exact-ID command per
+  host, then poll inventory until all three are absent.

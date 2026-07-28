@@ -3,7 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$expected = @('openwrt-lab', 'openwrt-lab-2')
+$expected = @('openwrt-lab', 'openwrt-lab-2', 'openwrt-lab-3')
 $targets = foreach ($name in $expected) {
     $stateFile = Join-Path $repoRoot ".state\$name.json"
     if (-not (Test-Path -LiteralPath $stateFile)) {
@@ -36,5 +36,4 @@ do {
 if ($remaining.Count -ne 0) {
     throw 'Deletion requests were accepted but inventory has not converged.'
 }
-Write-Host 'Both exact lab droplets are absent. Unrelated droplets were not targeted.'
-
+Write-Host 'All three exact lab droplets are absent. No other resource was targeted.'
