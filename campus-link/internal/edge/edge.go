@@ -22,17 +22,20 @@ import (
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/binding"
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/config"
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/control"
+	"github.com/dual1208/os-lab-distributions/campus-link/internal/rendezvous"
 	cltun "github.com/dual1208/os-lab-distributions/campus-link/internal/tun"
 )
 
 type Runner struct {
-	cfg      config.Edge
-	version  string
-	sent     atomic.Uint64
-	received atomic.Uint64
-	dropped  atomic.Uint64
-	mu       sync.Mutex
-	state    edgeState
+	cfg       config.Edge
+	version   string
+	sent      atomic.Uint64
+	received  atomic.Uint64
+	dropped   atomic.Uint64
+	planEpoch atomic.Uint64
+	mu        sync.Mutex
+	state     edgeState
+	plans     chan rendezvous.Plan
 }
 
 type edgeState struct {
@@ -77,7 +80,10 @@ func New(cfg config.Edge, version string) (*Runner, error) {
 	if cfg.MTU > 1280 || cfg.MTU < 576 {
 		return nil, errors.New("Phase-1 MTU must be between 576 and 1280")
 	}
-	return &Runner{cfg: cfg, version: version, state: edgeState{Site: cfg.Site, Control: "offline", UDP: "unbound", QUIC: "idle", TUN: "down"}}, nil
+	return &Runner{
+		cfg: cfg, version: version, plans: make(chan rendezvous.Plan, 1),
+		state: edgeState{Site: cfg.Site, Control: "offline", UDP: "unbound", QUIC: "idle", TUN: "down"},
+	}, nil
 }
 
 func (r *Runner) Run(ctx context.Context) error {
@@ -322,8 +328,41 @@ func (r *Runner) heartbeat(ctx context.Context, cancel context.CancelFunc, conn 
 				failControl(cancel, errCh, errors.New("invalid control heartbeat acknowledgement"))
 				return
 			}
+			if ack.Plan != nil {
+				if err := r.acceptRendezvousPlan(*ack.Plan, time.Now()); err != nil {
+					failControl(cancel, errCh, err)
+					return
+				}
+			}
 		}
 	}
+}
+
+func (r *Runner) acceptRendezvousPlan(message control.RendezvousPlan, now time.Time) error {
+	current := r.planEpoch.Load()
+	if message.PathEpoch <= current {
+		return nil
+	}
+	plan, err := rendezvous.ValidatePlan(message, rendezvous.PlanExpect{
+		Circuit: r.cfg.Circuit, Generation: r.cfg.Generation, MinPathEpoch: current, Now: now,
+	})
+	if err != nil {
+		return fmt.Errorf("invalid rendezvous plan: %w", err)
+	}
+	if r.plans == nil {
+		return errors.New("rendezvous plan mailbox unavailable")
+	}
+	select {
+	case <-r.plans:
+	default:
+	}
+	select {
+	case r.plans <- plan:
+	default:
+		return errors.New("rendezvous plan mailbox unavailable")
+	}
+	r.planEpoch.Store(plan.PathEpoch)
+	return nil
 }
 
 func failControl(cancel context.CancelFunc, errCh chan<- error, err error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/json"
 	"net"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/config"
 	"github.com/dual1208/os-lab-distributions/campus-link/internal/control"
+	"github.com/dual1208/os-lab-distributions/campus-link/internal/rendezvous"
 )
 
 func TestServerRequiresExplicitDataPeerIdentity(t *testing.T) {
@@ -94,5 +96,44 @@ func TestPacketCountersDoNotSynchronouslyWriteStatus(t *testing.T) {
 	}
 	if r.sent.Load() != 10_000 || r.received.Load() != 10_000 {
 		t.Fatal("packet counters lost updates")
+	}
+}
+
+func TestRendezvousPlanMailboxIsBoundedAndMonotonic(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	r := &Runner{
+		cfg:   config.Edge{Circuit: "campus", Generation: "ga"},
+		plans: make(chan rendezvous.Plan, 1),
+	}
+	message := control.RendezvousPlan{
+		Type: "rendezvous-plan", Circuit: "campus", Generation: "ga", PeerGeneration: "gb",
+		Session:  hex.EncodeToString([]byte("0123456789abcdef")),
+		ProbeKey: hex.EncodeToString([]byte("0123456789abcdef0123456789abcdef")),
+		Role:     "sender", Attempt: 1, PathEpoch: 1,
+		StartUnix: now.Add(time.Second).Unix(), ExpiresUnix: now.Add(45 * time.Second).Unix(),
+		Candidates: []string{"203.0.113.2:40002"},
+	}
+	if err := r.acceptRendezvousPlan(message, now); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-r.plans; got.PathEpoch != 1 {
+		t.Fatalf("unexpected plan: %#v", got)
+	}
+	if err := r.acceptRendezvousPlan(message, now); err != nil {
+		t.Fatalf("duplicate was not idempotent: %v", err)
+	}
+	select {
+	case <-r.plans:
+		t.Fatal("duplicate plan was delivered twice")
+	default:
+	}
+
+	message.PathEpoch = 2
+	message.Candidates = []string{"100.100.100.200:80"}
+	if err := r.acceptRendezvousPlan(message, now); err == nil {
+		t.Fatal("unsafe newer plan accepted")
+	}
+	if r.planEpoch.Load() != 1 {
+		t.Fatal("invalid plan advanced epoch")
 	}
 }

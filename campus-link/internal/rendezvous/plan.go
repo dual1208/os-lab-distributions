@@ -40,6 +40,7 @@ func ValidatePlan(message control.RendezvousPlan, expect PlanExpect) (Plan, erro
 	if message.Type != "rendezvous-plan" || message.Circuit == "" || message.Circuit != expect.Circuit ||
 		message.Generation == "" || message.Generation != expect.Generation || message.PeerGeneration == "" ||
 		message.PeerGeneration == message.Generation || message.PathEpoch <= expect.MinPathEpoch ||
+		message.PathEpoch-expect.MinPathEpoch > 1024 ||
 		message.Attempt == 0 || message.Attempt > 64 {
 		return plan, ErrInvalidPlan
 	}

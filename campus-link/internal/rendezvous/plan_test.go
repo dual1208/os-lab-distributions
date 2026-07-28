@@ -43,6 +43,7 @@ func TestValidatePlanRejectsUntrustedFields(t *testing.T) {
 		{"wrong generation", func(p *control.RendezvousPlan) { p.Generation = "old" }},
 		{"same peer generation", func(p *control.RendezvousPlan) { p.PeerGeneration = p.Generation }},
 		{"stale epoch", func(p *control.RendezvousPlan) { p.PathEpoch = 2 }},
+		{"epoch jump", func(p *control.RendezvousPlan) { p.PathEpoch = 1027 }},
 		{"zero attempt", func(p *control.RendezvousPlan) { p.Attempt = 0 }},
 		{"excess attempts", func(p *control.RendezvousPlan) { p.Attempt = 65 }},
 		{"wrong role", func(p *control.RendezvousPlan) { p.Role = "both" }},
