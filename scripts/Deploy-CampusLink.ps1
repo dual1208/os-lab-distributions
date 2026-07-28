@@ -23,7 +23,8 @@ if (-not $relayAddress -or $relayAddress -notmatch '^[A-Za-z0-9.-]+$') {
 & ssh gz 'set -eu; ! ss -H -ltn "sport = :443" | grep -q .; ! ss -H -lun "sport = :443" | grep -q .'
 if ($LASTEXITCODE -ne 0) { throw 'gz TCP/443 or UDP/443 became occupied; deployment stopped.' }
 
-& ssh "root@$labIp" "set -eu; cd /srv/openwrt-lab/repo; git pull --ff-only; ./campus-link/scripts/install-edge-lab.sh /srv/openwrt-lab/repo '$relayAddress'"
+$edgeCommand = "set -eu; export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0=/srv/openwrt-lab/repo; cd /srv/openwrt-lab/repo; git pull --ff-only; ./campus-link/scripts/install-edge-lab.sh /srv/openwrt-lab/repo '$relayAddress'"
+& ssh "root@$labIp" $edgeCommand
 if ($LASTEXITCODE -ne 0) { throw 'Edge build or installation failed.' }
 
 $stage = Join-Path $repoRoot '.state\campus-link-relay-stage'
