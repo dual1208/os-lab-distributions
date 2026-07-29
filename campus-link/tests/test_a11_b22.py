@@ -39,6 +39,19 @@ class ProtocolTests(unittest.TestCase):
             a11_b22.health(args)
         flow.assert_called_once_with("source", "destination", 1, 9_000_000)
 
+    def test_server_reports_digest_corruption_as_integrity_failure(self):
+        client, server = socket.socketpair()
+        thread = threading.Thread(target=a11_b22.handle_tcp, args=(server,))
+        thread.start()
+        with client:
+            client.sendall(a11_b22.HEADER.pack(17, 3) + b"bad" + bytes(a11_b22.DIGEST_SIZE))
+            response = a11_b22.recv_exact(client, a11_b22.HEADER.size + a11_b22.DIGEST_SIZE)
+        sequence, status = a11_b22.HEADER.unpack(response[: a11_b22.HEADER.size])
+        self.assertEqual(sequence, 17)
+        self.assertEqual(status, a11_b22.STATUS_DIGEST_MISMATCH)
+        thread.join(timeout=3)
+        self.assertFalse(thread.is_alive())
+
 
 if __name__ == "__main__":
     unittest.main()

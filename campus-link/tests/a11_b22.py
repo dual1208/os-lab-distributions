@@ -14,6 +14,8 @@ HEADER = struct.Struct("!QQ")
 DIGEST_SIZE = 32
 MAX_PAYLOAD = 2 * 1024 * 1024 * 1024
 CHUNK_SIZE = 64 * 1024
+STATUS_OK = 0
+STATUS_DIGEST_MISMATCH = 1
 
 
 def recv_exact(conn, size, allow_clean_eof=False):
@@ -65,8 +67,9 @@ def handle_tcp(conn):
             claimed = recv_exact(conn, DIGEST_SIZE)
             actual = digest.digest()
             if claimed != actual:
-                raise ValueError("payload digest mismatch")
-            conn.sendall(HEADER.pack(sequence, 0) + actual)
+                conn.sendall(HEADER.pack(sequence, STATUS_DIGEST_MISMATCH) + actual)
+                return
+            conn.sendall(HEADER.pack(sequence, STATUS_OK) + actual)
 
 
 def tcp_server(bind, port):
@@ -115,7 +118,7 @@ def send_request(conn, sequence, length):
 def read_response(conn, sequence, expected):
     response = recv_exact(conn, HEADER.size + DIGEST_SIZE)
     got_sequence, got_length = HEADER.unpack(response[: HEADER.size])
-    if got_sequence != sequence or got_length != 0 or response[HEADER.size :] != expected:
+    if got_sequence != sequence or got_length != STATUS_OK or response[HEADER.size :] != expected:
         raise AssertionError("response sequence or digest mismatch")
 
 
