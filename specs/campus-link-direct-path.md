@@ -226,6 +226,10 @@ Implementation must close these defects in this order:
    scoped to control session, site, request nonce, and challenge. Every flight,
    including READY, is replay-safe and idempotently retransmittable under loss
    and reorder.
+   A new tuple remains pending until its source-matching response proves return
+   routability; the last completed tuple may continue carrying authenticated
+   QUIC while that proof is pending, and the relay switches atomically. A
+   request from another source cannot replace an equal-sequence pending tuple.
 4. Correlate probe responses to request nonces, invoke a bounded replay cache,
    expire and erase plans/keys, accept success/failure reports, and create fresh
    attempts with bounded jittered backoff. A failed punch settles on a stable

@@ -40,6 +40,14 @@ QUIC DATAGRAM makes application UDP lossless.
   must never clear a replacement session.
 - UDP binding tokens are random, scoped to one control session, invalidated on
   replacement/disconnect, and never logged or stored in status.
+- Every UDP binding flight (request, challenge, response, and READY) is
+  HMAC-authenticated and carries the site, non-zero monotonic sequence, request
+  nonce, and server challenge. Replies are idempotent for one transaction.
+  A response is applied only from the tuple that received its challenge. During
+  rebinding, the last proven tuple remains active until the pending tuple proves
+  return routability; the switch is then atomic and the pending tuple can never
+  forward early. Lost READY packets are recoverable by replaying the matching
+  authenticated request or response.
 - The relay forwards only packets from the two currently challenged tuples,
   applies an explicit maximum outer datagram size, and never amplifies payloads.
 - The edge rejects malformed IPv4, invalid header checksums, expired TTL, wrong
@@ -57,6 +65,14 @@ QUIC DATAGRAM makes application UDP lossless.
   and application probe health. A process being alive is not path health.
 - Timeouts, retry intervals, exponential backoff, and jitter are bounded and
   configurable. A reconnect storm cannot spin CPU or flood the relay.
+- The relay admits at most 32 concurrent pre-authentication control handshakes.
+  TLS handshake plus registration has a 10-second deadline, accept failures use
+  bounded backoff, and excess sockets are closed before a goroutine is created.
+  Heartbeat sequences are strictly increasing and heartbeats arriving faster
+  than once per second close only that control session.
+- A malformed optional rendezvous plan is quarantined and counted; it never
+  cancels an otherwise healthy authenticated relay path. A failed UDP send is
+  counted as a packet drop and cannot terminate the relay process.
 - Packet ingestion and delivery use bounded memory. Congestion or a slow TUN
   increments explicit drop counters instead of creating an unbounded queue.
 - A relay or edge restart, WAN address change, stale control connection, and NAT
@@ -88,6 +104,25 @@ QUIC DATAGRAM makes application UDP lossless.
   a 24-hour no-fault soak and seven-day burn-in with no unexplained restart,
   corruption, route leak, or secret-bearing log are required before the word
   “production-ready” appears in release notes.
+
+### Soak health semantics
+
+- Each direction is probed at least every ten seconds. One transport timeout is
+  recorded as a transient miss, then retried at one-second intervals within the
+  same bounded outage window. Recovery within 30 seconds is recorded with its
+  measured duration; failure to recover by 30 seconds fails the gate. This
+  implements the recovery objective instead of treating one scheduler or
+  packet-delay outlier as an unexplained terminal failure.
+- Digest, sequence, framing, or policy corruption fails immediately and is
+  never retried as availability noise. A dead probe server, missing route,
+  inactive edge, or unknown probe exit also fails immediately.
+- The bounded result records successful application probes, total attempts,
+  transient misses, recovered outages, and maximum outage duration. A failed
+  run writes a separate sanitized failure marker with direction and failure
+  class; only a completed-duration pass writes the pass marker.
+- A supervising runtime limit, when used, must exceed the requested soak
+  duration plus startup and shutdown margin. Service state alone is not gate
+  evidence; the exact pass marker is mandatory.
 
 ## Required tests
 

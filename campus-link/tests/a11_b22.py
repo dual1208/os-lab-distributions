@@ -214,7 +214,14 @@ def client(args):
 
 
 def health(args):
-    one_flow(args.source, args.destination, args.tcp_port, 9_000_000)
+    try:
+        one_flow(args.source, args.destination, args.tcp_port, 9_000_000)
+    except AssertionError:
+        print("HEALTH=integrity-failure", flush=True)
+        raise SystemExit(76)
+    except (EOFError, OSError, TimeoutError):
+        print("HEALTH=transport-unavailable", flush=True)
+        raise SystemExit(75)
     print("HEALTH=pass")
 
 

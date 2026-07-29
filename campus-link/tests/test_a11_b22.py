@@ -2,6 +2,8 @@ import hashlib
 import socket
 import threading
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 import a11_b22
 
@@ -20,6 +22,22 @@ class ProtocolTests(unittest.TestCase):
             a11_b22.exchange(client, 7, 1_000_003, half_close=True)
         thread.join(timeout=3)
         self.assertFalse(thread.is_alive())
+
+    def test_health_classifies_transport_and_integrity_failures(self):
+        args = SimpleNamespace(source="source", destination="destination", tcp_port=1)
+        with mock.patch.object(a11_b22, "one_flow", side_effect=OSError("unavailable")):
+            with self.assertRaises(SystemExit) as transport:
+                a11_b22.health(args)
+        self.assertEqual(transport.exception.code, 75)
+
+        with mock.patch.object(a11_b22, "one_flow", side_effect=AssertionError("corrupt")):
+            with self.assertRaises(SystemExit) as integrity:
+                a11_b22.health(args)
+        self.assertEqual(integrity.exception.code, 76)
+
+        with mock.patch.object(a11_b22, "one_flow") as flow:
+            a11_b22.health(args)
+        flow.assert_called_once_with("source", "destination", 1, 9_000_000)
 
 
 if __name__ == "__main__":
