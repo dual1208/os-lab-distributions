@@ -3,25 +3,28 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$expected = @('openwrt-lab', 'openwrt-lab-2', 'openwrt-lab-3')
-$targets = foreach ($name in $expected) {
-    $stateFile = Join-Path $repoRoot ".state\$name.json"
+$mapping = @(Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'cloud\droplet-role-map.json') |
+    ConvertFrom-Json)
+if ($mapping.Count -ne 3) { throw 'Expected exactly three role mappings.' }
+$targets = foreach ($entry in $mapping) {
+    $stateFile = Join-Path $repoRoot ".state\$($entry.state_name).json"
     if (-not (Test-Path -LiteralPath $stateFile)) {
-        throw "Missing private state for $name; refusing broad discovery deletion."
+        throw "Missing private state for $($entry.state_name); refusing broad discovery deletion."
     }
     $state = Get-Content -Raw -LiteralPath $stateFile | ConvertFrom-Json
-    if ($state.name -ne $name -or -not $state.id) {
-        throw "State identity mismatch for $name"
+    if ($state.name -ne $entry.state_name -or -not $state.id) {
+        throw "State identity mismatch for $($entry.state_name)"
     }
     $live = @(doctl compute droplet get $state.id -o json | ConvertFrom-Json)
-    if ($live.Count -ne 1 -or $live[0].name -ne $name) {
-        throw "Live identity mismatch for $name"
+    if ($live.Count -ne 1 -or
+        $live[0].name -notin @($entry.state_name, $entry.provider_name)) {
+        throw "Live identity mismatch for $($entry.provider_name)"
     }
-    [pscustomobject]@{ Name = $name; Id = [long]$state.id }
+    [pscustomobject]@{ Name = $live[0].name; Id = [long]$state.id }
 }
 
 foreach ($target in $targets) {
-    if ($PSCmdlet.ShouldProcess($target.Name, "Destroy exact DigitalOcean Droplet ID $($target.Id)")) {
+    if ($PSCmdlet.ShouldProcess($target.Name, 'Destroy exact recorded DigitalOcean Droplet')) {
         doctl compute droplet delete $target.Id --force
     }
 }

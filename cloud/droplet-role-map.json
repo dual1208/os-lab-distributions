@@ -1,0 +1,17 @@
+[
+  {
+    "state_name": "openwrt-lab",
+    "provider_name": "openwrt-e8450-build",
+    "role": "verified E8450 build and release artifacts"
+  },
+  {
+    "state_name": "openwrt-lab-2",
+    "provider_name": "campus-link-router-lab",
+    "role": "QEMU routers and campus-link qualification"
+  },
+  {
+    "state_name": "openwrt-lab-3",
+    "provider_name": "openwrt-e8450-repro",
+    "role": "independent clean E8450 reproduction"
+  }
+]
