@@ -1,6 +1,7 @@
 # campus-link asymmetric identity and key-rotation contract
 
-Status: required by user; implementation and migration pending.
+Status: required by user; partial foundations only; runtime wiring, safe
+provisioning, rotation, expiry visibility, and migration remain pending.
 
 ## Objective
 
@@ -157,6 +158,47 @@ Warnings begin at 30 days, become critical at 14 days, and block a new session
 after expiry. Existing TLS sessions are revalidated by bounded reconnect before
 the certificate expires; they do not run indefinitely on an expired identity.
 
+## Release-blocking adversarial closure gate
+
+The 2026-07-28 adversarial review found that the strict verifier was not called
+by any active TLS path. The relay still derived a site from a certificate
+common name, the edge control client relied on CA plus DNS verification, and
+the data server accepted a DNS-or-common-name fallback. Generated pins were not
+runtime authorizations, and the generated `site-a.campus-link` data identity did
+not match the server installer's `site-a` expectation. These are defects, not
+migration compatibility.
+
+Before any asymmetric-identity candidate is staged:
+
+- security-bearing JSON rejects unknown, duplicate, and case-smuggled fields;
+- every TLS verifier retains native X.509 verification and requires a non-empty
+  verified chain, exactly one expected URI, the exact allowed EKU set, an
+  Ed25519 non-CA digital-signature leaf with a lifetime no longer than 90 days,
+  and a canonical strictly padded Base64 SPKI pin;
+- pin uniqueness is checked on decoded bytes, and one current plus at most one
+  next pin is accepted;
+- relay authorization contains exactly two entries binding site, circuit,
+  prefix, control URI, client-auth EKU, and pins. The site is derived from the
+  matched entry, never from a certificate or registration common name;
+- the edge control client and both QUIC roles enforce chain, DNS transport name,
+  exact URI/EKU, and SPKI authorization. Common-name fallback is deleted;
+- full TLS handshake tests reject foreign same-root leaves in every verifier
+  position and prove the generated A/B pair succeeds in either QUIC role;
+- the all-in-one generator is labeled lab-only and refuses physical or
+  production installation. Production bundles contain one endpoint's leaves,
+  public roots, and peer pins only; neither router nor `gz` receives a CA key or
+  another endpoint's private key; and
+- services use separate least-privilege identities. Certificate/key paths are
+  regular files reached through non-symlink, root-owned, non-group/world-
+  writable path components and are validated for key match, profile, mode,
+  ownership, and authorization even when a completion marker exists.
+
+Rotation atomically backs up and replaces the complete cert/key/root/
+authorization tuple independently of binary version. Pin retirement or
+emergency revocation invalidates the owner generation, rendezvous plans and
+probe keys, UDP binding, control session, and QUIC session. Sanitized closure
+evidence is required before staging or rerunning production gates.
+
 ## Acceptance checks
 
 - The intended two router control certificates authenticate and map to exactly
@@ -183,11 +225,13 @@ the certificate expires; they do not run indefinitely on an expired identity.
 ## Apply and rollback
 
 1. Commit and push this contract before verifier or PKI-generator changes.
-2. Add strict URI/EKU/SPKI verification and rejection tests without changing
-   the running candidate.
+2. Add strict URI/EKU/SPKI verification and full TLS rejection tests without
+   changing the running candidate.
 3. Replace the lab generator with plane-separated Ed25519 leaves and emit a
    private runtime authorization file. Never overwrite an existing PKI.
-4. Add current/next configuration, expiry status, and atomic rotation helpers.
+4. Wire the verifier into all TLS boundaries, remove common-name compatibility,
+   and add current/next configuration, expiry status, and atomic credential-
+   tuple rotation helpers.
 5. Build and test in an isolated candidate. Stage the new trust configuration
    on all three machines before activating any new certificate.
 6. Activate one plane at a time and retain the current certificate, key, and

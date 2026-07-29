@@ -77,12 +77,16 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 
 ### Cloud hosts
 
-- Create exactly three Ubuntu 24.04 LTS Droplets named `openwrt-lab`,
+- The three Ubuntu 24.04 LTS Droplets were provisioned as `openwrt-lab`,
   `openwrt-lab-2`, and `openwrt-lab-3` in `sfo3`, each using
-  `s-4vcpu-8gb-intel` and an existing account SSH public key. The first builds
-  E8450 firmware; the second builds and hosts the x86-64 interactive and
-  two-router labs; the third performs an independent clean E8450 build for
-  reproducibility and then serves as relay/verification capacity.
+  `s-4vcpu-8gb-intel` and an existing account SSH public key. After workload
+  discovery, rename only those exact recorded IDs to
+  `openwrt-e8450-build`, `campus-link-router-lab`, and
+  `openwrt-e8450-repro`, respectively. The first retains the verified primary
+  E8450 build, the second hosts the x86-64 interactive/two-router lab and
+  supervised qualification, and the third retains the independent clean
+  reproduction tree. Provider rename is metadata-only and must not restart a
+  guest, service, or qualification gate.
 - Tag it `os-lab`, `openwrt-build`, and `temporary`.
 - Install only the build, QEMU/KVM, container/network-namespace, verification,
   and Git tooling required by this contract.
@@ -90,6 +94,27 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
   compilation and root only for host networking/KVM/service setup.
 - Record the Droplet IDs and public addresses only in ignored local state, never
   in Git, release notes, logs, or tutorials.
+
+### Provider naming and co-tenancy
+
+The ignored state files retain their immutable provisioning names. Tracked
+lifecycle helpers map them explicitly to current provider names:
+
+| Provisioning record | Current provider name | Reserved role |
+|---|---|---|
+| `openwrt-lab` | `openwrt-e8450-build` | verified E8450 build and release artifacts |
+| `openwrt-lab-2` | `campus-link-router-lab` | QEMU routers and campus-link qualification |
+| `openwrt-lab-3` | `openwrt-e8450-repro` | independent clean reproduction tree |
+
+A sanitized before/after report records only intended role, plan CPU/RAM/disk,
+coarse available capacity, aggregate cost, and gate/service state. It excludes
+IDs, addresses, credentials, tokens, exact inventories, and process arguments.
+
+Additional work uses a separate workload root and bounded service/cgroup. Each
+host always reserves at least 2 GiB available RAM and 25 GiB free disk for its
+existing role. Co-tenancy must not modify `/srv/openwrt-lab`, expose a public
+listener, or compete with an active qualification/soak/burn-in. The router-lab
+host is unavailable to unrelated heavy work while any such gate is active.
 
 ### Linksys firmware bundle
 
@@ -211,12 +236,16 @@ be backed by the public `dual1208/os-lab-distributions` GitHub repository.
 
 ### Provisioning and cost
 
-- The exact new Droplets are `openwrt-lab`, `openwrt-lab-2`, and
-  `openwrt-lab-3`, each size
+- The exact recorded Droplet IDs have the current role names
+  `openwrt-e8450-build`, `campus-link-router-lab`, and
+  `openwrt-e8450-repro`, each size
   `s-4vcpu-8gb-intel`, region `sfo3`, Ubuntu 24.04 LTS, tagged as specified,
   and accessible by SSH key.
 - A sanitized cost record states the hourly rate, creation time, and estimated
   maximum cost through 2026-07-31 without exposing account data.
+- A read-only before/after guest snapshot confirms unchanged boot/service/gate
+  state, no new public listener, an untouched project tree, and the required
+  memory/disk reserve.
 - The explicitly authorized legacy Droplet is absent after a converged exact-ID
   deletion, and no volume was targeted or removed.
 

@@ -1,7 +1,8 @@
 # campus-link rendezvous-assisted direct-path contract
 
-Status: design approved by the user's 2026-07-28 correction; implementation
-and production qualification pending.
+Status: design approved by the user's 2026-07-28 correction; rendezvous
+foundations only. Direct forwarding, migration, and production qualification
+are not implemented.
 
 ## Objective
 
@@ -112,7 +113,10 @@ Not in scope:
 
 1. The peers send authenticated probes from the eventual data socket to the
    supplied candidates. A probe covers protocol version, circuit, session ID,
-   attempt, role, expiry, random nonce, and sender identity with HMAC-SHA-256.
+   attempt, role, expiry, random nonce, and asserted sender role with
+   HMAC-SHA-256. Because `gz` and both routers know this attempt key, the HMAC
+   proves attempt membership, not asymmetric router identity; subsequent exact
+   data-plane mTLS remains the identity boundary.
 2. Replays, expired plans, wrong roles, unknown sessions, invalid HMACs,
    reflected responses, unexpected source candidates, and oversized packets
    are rejected without changing path state.
@@ -200,6 +204,79 @@ STARTING -> RELAY_READY -> PUNCHING -> DIRECT_PROBING -> DIRECT
   QUIC/TUN implementation cannot meet this, the spec must be revised before
   code is weakened or a production claim is made.
 
+## 2026-07-28 adversarial implementation gate
+
+The first adversarial review established that every current data packet still
+uses the relay. Rendezvous plans are enqueued but never consumed;
+`rendezvous.Punch`, `ReplayCache`, `pathstate.Manager`, and `PathReport` have no
+runtime caller. A shared generation emitted by the installer is rejected as its
+own peer generation, and an invalid optional plan currently tears down the
+otherwise healthy relay path. These conditions block deployment of current
+HEAD, but do not invalidate the previously deployed Phase-1 candidate.
+
+Implementation must close these defects in this order:
+
+1. Generate independent site generations. Quarantine an invalid or failed
+   direct attempt without cancelling a healthy fallback session.
+2. Give one component exclusive ownership of the NAT-mapped UDP socket. It
+   demultiplexes bounded binding, rendezvous, and QUIC traffic; raw punching and
+   quic-go may not concurrently call `ReadFromUDP` or change each other's
+   deadlines.
+3. Replace the one-shot binding exchange with an authenticated transaction
+   scoped to control session, site, request nonce, and challenge. Every flight,
+   including READY, is replay-safe and idempotently retransmittable under loss
+   and reorder.
+4. Correlate probe responses to request nonces, invoke a bounded replay cache,
+   expire and erase plans/keys, accept success/failure reports, and create fresh
+   attempts with bounded jittered backoff. A failed punch settles on a stable
+   relay without a reconnect storm.
+5. Keep one process-lifetime TUN and central packet pump. Validate both paths,
+   coordinate ready/commit with the peer, accept a narrowly bounded previous
+   epoch during transition, and carry an authenticated tunnel envelope with
+   version, path epoch, and packet sequence.
+6. Validate a conservative end-to-end datagram budget before route activation.
+   PMTU reduction, stalled packet progress, queue overflow, and transient relay
+   sends are observable bounded path failures rather than process-global exits.
+7. Bound pre-auth TLS admission and heartbeat rate, back off transient accept
+   errors, revalidate relay owner/tuple epochs before sends, count forwarding
+   only after successful writes, and move status filesystem I/O outside the
+   forwarding mutex.
+
+Warm standby means authenticated control plus a NAT binding whose keepalive
+terminates at `gz`. A relayed QUIC data session is established only when needed;
+otherwise its encrypted QUIC keepalives would make an exact zero-forwarded-
+packet direct-path assertion impossible.
+
+### Large-transfer reliability gate
+
+The completed Phase-1 relay qualification transferred and hash-verified 1 GiB
+in both directions, with bulk phases of 3,167.867 and 2,942.406 seconds
+(approximately 2.71 and 2.92 Mbit/s). This is useful relay integrity evidence,
+not acceptable proof of a practical direct bulk path.
+
+The direct candidate must additionally pass:
+
+- simultaneous bidirectional 1 GiB transfers and a 4–8 GiB single-connection
+  stream made of sequence-unique deterministic chunks, with exact final hashes,
+  progress at least every 30 seconds, no unexplained retransmission reset, and
+  a lab floor of 25 Mbit/s per single direction and 15 Mbit/s per direction
+  while simultaneous;
+- one long-lived sequenced TCP stream across direct-to-relay-to-direct,
+  NAT rebinding, rendezvous/control loss, and `gz` restart without application
+  reconnect, missing/duplicate records, or hash mismatch;
+- mid-transfer burst loss, duplication, severe reorder, bandwidth restriction,
+  packet corruption, and PMTU step-down with ICMP blocked;
+- deterministic loss/reorder of every binding flight, repeated punching while
+  fallback traffic is active, and 1,000 in-process path transitions with RSS,
+  goroutine, descriptor, socket, queue, and per-reason drop counters returning
+  to bounded baselines; and
+- relay counter and bounded-capture proof that healthy bulk bypasses `gz` while
+  control and rendezvous remain available.
+
+No bulk phase may run without a whole-phase deadline. If the measured lab floor
+is infeasible on the selected design, revise this contract with the user before
+weakening the gate or making a production claim.
+
 ## Acceptance checks
 
 ### Functional and no-relay proof
@@ -275,4 +352,3 @@ experimental, regardless of individual successful transfers.
   project requires no host action; removing its documentation reference is
   sufficient. Deleting the GitHub fork is destructive and is not part of
   rollback.
-
