@@ -4,6 +4,8 @@
 import argparse
 import concurrent.futures
 import hashlib
+import hmac
+import math
 import socket
 import struct
 import threading
@@ -16,6 +18,10 @@ MAX_PAYLOAD = 2 * 1024 * 1024 * 1024
 CHUNK_SIZE = 64 * 1024
 STATUS_OK = 0
 STATUS_DIGEST_MISMATCH = 1
+MAX_RECORDS = 1_000_000
+MAX_CONCURRENCY = 4096
+MAX_PIPELINE_WINDOW = 65_536
+MAX_UDP_PACKETS = 1_000_000
 
 
 def recv_exact(conn, size, allow_clean_eof=False):
@@ -33,12 +39,21 @@ def recv_exact(conn, size, allow_clean_eof=False):
 
 
 def payload_chunks(sequence, length):
-    seed = hashlib.sha256(f"campus-link:{sequence}".encode()).digest()
+    if not 0 <= sequence < 1 << 64:
+        raise ValueError("sequence is outside uint64")
+    if not 0 <= length <= MAX_PAYLOAD:
+        raise ValueError("payload length is outside the bounded range")
     remaining = length
+    chunk_index = 0
     while remaining:
         size = min(remaining, CHUNK_SIZE)
+        seed = hashlib.sha256(
+            b"campus-link-record-v2\0"
+            + struct.pack("!QQQ", sequence, chunk_index, length)
+        ).digest()
         yield (seed * ((size + len(seed) - 1) // len(seed)))[:size]
         remaining -= size
+        chunk_index += 1
 
 
 def digest_for(sequence, length):
@@ -60,13 +75,17 @@ def handle_tcp(conn):
                 raise ValueError("payload exceeds server safety limit")
             digest = hashlib.sha256()
             remaining = length
-            while remaining:
-                chunk = recv_exact(conn, min(remaining, CHUNK_SIZE))
+            payload_matches = True
+            for expected_chunk in payload_chunks(sequence, length):
+                chunk = recv_exact(conn, len(expected_chunk))
                 digest.update(chunk)
+                payload_matches &= hmac.compare_digest(chunk, expected_chunk)
                 remaining -= len(chunk)
+            if remaining != 0:
+                raise AssertionError("server payload accounting mismatch")
             claimed = recv_exact(conn, DIGEST_SIZE)
             actual = digest.digest()
-            if claimed != actual:
+            if not payload_matches or not hmac.compare_digest(claimed, actual):
                 conn.sendall(HEADER.pack(sequence, STATUS_DIGEST_MISMATCH) + actual)
                 return
             conn.sendall(HEADER.pack(sequence, STATUS_OK) + actual)
@@ -87,7 +106,7 @@ def udp_server(bind, port):
         server.bind((bind, port))
         while True:
             packet, peer = server.recvfrom(2048)
-            if len(packet) == 8 + DIGEST_SIZE:
+            if parse_udp_wire(packet) is not None:
                 server.sendto(packet, peer)
 
 
@@ -134,8 +153,27 @@ def one_flow(source, destination, port, sequence):
         exchange(conn, sequence, 1024)
 
 
+def parse_udp_wire(wire, sequence_limit=None):
+    if len(wire) != 8 + DIGEST_SIZE:
+        return None
+    sequence = struct.unpack("!Q", wire[:8])[0]
+    if sequence_limit is not None and not 0 <= sequence < sequence_limit:
+        return None
+    expected = digest_for(sequence, 64)
+    if not hmac.compare_digest(wire[8:], expected):
+        return None
+    return sequence
+
+
+def valid_udp_echo(wire, peer, expected_address, expected_port, sequence_limit):
+    if peer != (expected_address, expected_port):
+        return None
+    return parse_udp_wire(wire, sequence_limit)
+
+
 def udp_probe(source, destination, port, packets, interval_ms, wait_seconds):
     received = set()
+    expected_address = socket.gethostbyname(destination)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conn:
         conn.settimeout(0.05)
         conn.bind((source, 0))
@@ -144,11 +182,14 @@ def udp_probe(source, destination, port, packets, interval_ms, wait_seconds):
         def receive():
             while not stop.is_set():
                 try:
-                    wire, _ = conn.recvfrom(2048)
+                    wire, peer = conn.recvfrom(2048)
                 except TimeoutError:
                     continue
-                if len(wire) == 8 + DIGEST_SIZE:
-                    received.add(struct.unpack("!Q", wire[:8])[0])
+                sequence = valid_udp_echo(
+                    wire, peer, expected_address, port, packets
+                )
+                if sequence is not None:
+                    received.add(sequence)
 
         receiver = threading.Thread(target=receive)
         receiver.start()
@@ -163,10 +204,25 @@ def udp_probe(source, destination, port, packets, interval_ms, wait_seconds):
 
 
 def client(args):
-    if args.pipeline_window < 1 or args.records < 1 or args.concurrency < 1:
-        raise ValueError("records, pipeline window, and concurrency must be positive")
-    if not 0 <= args.bulk_bytes <= MAX_PAYLOAD or args.record_bytes < 0:
+    if not 1 <= args.records <= MAX_RECORDS:
+        raise ValueError("record count is outside the bounded range")
+    if not 1 <= args.pipeline_window <= MAX_PIPELINE_WINDOW:
+        raise ValueError("pipeline window is outside the bounded range")
+    if not 1 <= args.concurrency <= MAX_CONCURRENCY:
+        raise ValueError("concurrency is outside the bounded range")
+    if not 0 <= args.bulk_bytes <= MAX_PAYLOAD or not 0 <= args.record_bytes <= MAX_PAYLOAD:
         raise ValueError("payload size is outside the bounded range")
+    if not 0 <= args.udp_packets <= MAX_UDP_PACKETS:
+        raise ValueError("UDP packet count is outside the bounded range")
+    if (
+        not math.isfinite(args.udp_interval_ms)
+        or not 0 <= args.udp_interval_ms <= 60_000
+        or not math.isfinite(args.udp_wait_seconds)
+        or not 0 <= args.udp_wait_seconds <= 3600
+    ):
+        raise ValueError("UDP timings are outside the bounded range")
+    if not math.isfinite(args.min_udp_ratio) or not 0 <= args.min_udp_ratio <= 1:
+        raise ValueError("minimum UDP ratio must be between zero and one")
     started = time.monotonic()
     with open_client(args.source, args.destination, args.tcp_port) as conn:
         for first in range(1, args.records + 1, args.pipeline_window):

@@ -4,14 +4,14 @@ set -euo pipefail
 readonly STATUS=/run/campus-link/external-smoke.status
 rm -f "${STATUS}"
 for _ in {1..75}; do
-  if grep -q '"quic": "active"' /run/campus-link/site-a.json 2>/dev/null && \
-     grep -q '"quic": "active"' /run/campus-link/site-b.json 2>/dev/null; then
+  if grep -q '"quic": "active"' /run/campus-link/site-a/status.json 2>/dev/null && \
+     grep -q '"quic": "active"' /run/campus-link/site-b/status.json 2>/dev/null; then
     break
   fi
   sleep 1
 done
-grep -q '"quic": "active"' /run/campus-link/site-a.json
-grep -q '"quic": "active"' /run/campus-link/site-b.json
+grep -q '"quic": "active"' /run/campus-link/site-a/status.json
+grep -q '"quic": "active"' /run/campus-link/site-b/status.json
 ip -n campus-a route get 10.82.0.10 | grep -q 'dev cl0'
 ip -n campus-b route get 10.81.0.10 | grep -q 'dev cl0'
 ip netns exec oslab-a ping -c 3 -W 2 10.82.0.10 >/dev/null

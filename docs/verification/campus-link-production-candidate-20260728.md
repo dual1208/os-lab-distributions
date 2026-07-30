@@ -5,7 +5,7 @@
 This is a hardened production candidate, not a production-ready release. The
 mandatory 1 GiB, accelerated one-hour, 24-hour, and seven-day gates were not
 complete when this record was written. A single `gz` relay and the absence of
-TCP/443 fallback also remain availability blockers.
+TCP/441 fallback also remain availability blockers.
 
 The deployed edge/relay binaries report source version
 `phase1-5045bd92779a`. Later commits in this report add only tracked test and
@@ -63,6 +63,24 @@ ls -l /run/campus-link/*result
 The seven-day burn-in must start only after these results pass. Until then,
 documentation and releases must retain the `production candidate` label.
 
+### Qualification evidence contract
+
+A gate is valid only when its marker belongs to the same fresh qualification
+run and the exact same installed candidate as its prerequisite. A filename,
+cached systemd result, or an unscoped `STATUS=pass` line is never sufficient.
+Each marker must therefore be written atomically with a random run ID, a
+SHA-256 candidate fingerprint, and monotonic start/completion timestamps. A
+downstream gate must reject a prerequisite that predates its own supervised
+start, has a different run ID or candidate fingerprint, is malformed, or is
+missing. Starting the full gate invalidates all downstream markers; starting
+any later gate invalidates its own and all later markers.
+
+Gate durations and recovery budgets are measured only with the kernel's
+monotonic uptime clock. UTC timestamps may be recorded for human correlation,
+but wall-clock changes must never shorten a gate or an outage budget. Result
+markers are root-only and contain no addresses, credentials, certificate
+material, payloads, or rendezvous identifiers.
+
 ## 2026-07-29 gate transition
 
 The full qualification gate passed its 10,000-record, 100-concurrent-flow,
@@ -82,11 +100,26 @@ Contract and harness revision `b0ab412` separates transport unavailability
 from integrity failure, retries only transport misses within the existing
 30-second recovery objective, fails corruption immediately, and records
 attempt, transient-miss, recovered-outage, and maximum-outage counts without
-addresses or payloads. Only the harness and its tests were installed; the
+addresses or payloads. Follow-up revision `62662d9` makes the application
+protocol return an explicit digest-mismatch status so server-side corruption
+cannot be misclassified as an availability retry. Only the harness and its
+tests were installed; the
 running edge/relay candidate, routes, PKI, and firewall were unchanged. A fresh
 24-hour gate is active with a supervisor margin beyond the requested duration.
 Its pass marker remains pending, so the seven-day burn-in has not started and
 no production-ready claim is permitted.
+
+### 2026-07-29 sanitized supervision audit
+
+A later read-only audit found the supervised 24-hour service still active after
+17,625 monotonic seconds, with no 24-hour result marker. More importantly, the
+required qualification-run manifest was absent. Two older marker-shaped files
+for the full and accelerated stages were root-owned but mode `0644`, not the
+contractual `0600`, and neither validated against the current bounded schema or
+candidate chain. They are retained only as historical files and confer no gate
+credit. The active interval is therefore observational rather than release
+evidence; it will not authorize the seven-day burn-in. No service, route,
+credential, or live candidate was changed during this audit.
 
 ## Rollback
 

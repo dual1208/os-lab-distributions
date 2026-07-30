@@ -1,0 +1,31 @@
+[Unit]
+Description=campus-link 24-hour qualification soak gate
+After=campus-link-nat-rebinding.service campus-link-edge-a.service campus-link-edge-b.service
+Wants=campus-link-edge-a.service campus-link-edge-b.service
+AssertPathExists=/run/campus-link/qualification-run.manifest
+AssertPathExists=/run/campus-link/nat-rebinding.result
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/campus-link-soak-a11-b22 /srv/openwrt-lab/repo 24-hour
+TimeoutStartSec=26h
+TimeoutStopSec=30
+KillMode=control-group
+OOMPolicy=stop
+MemoryMax=768M
+TasksMax=256
+LimitNOFILE=512
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1
+LimitCORE=0
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+ReadWritePaths=/run/campus-link /run/campus-link-install-edge.lock

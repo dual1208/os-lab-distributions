@@ -1,6 +1,7 @@
 package tun
 
 import (
+	"bytes"
 	"encoding/binary"
 	"net/netip"
 	"testing"
@@ -23,6 +24,7 @@ func validPacket() []byte {
 
 func TestAuthorizeIPv4(t *testing.T) {
 	p := append(validPacket(), 0xde, 0xad)
+	want := append([]byte(nil), p...)
 	total, err := AuthorizeIPv4(p, siteA, siteB)
 	if err != nil {
 		t.Fatal(err)
@@ -30,8 +32,8 @@ func TestAuthorizeIPv4(t *testing.T) {
 	if total != 20 {
 		t.Fatalf("canonical length=%d, want 20", total)
 	}
-	if p[8] != 63 || checksum(p[:total]) != 0 {
-		t.Fatal("TTL or checksum was not updated")
+	if !bytes.Equal(p, want) || p[8] != 64 || checksum(p[:total]) != 0 {
+		t.Fatal("policy validation mutated TTL, checksum, or payload")
 	}
 }
 
@@ -41,7 +43,6 @@ func TestAuthorizeIPv4RejectsInvalidPackets(t *testing.T) {
 		mutate func([]byte)
 	}{
 		{name: "bad checksum", mutate: func(p []byte) { p[10] ^= 1 }},
-		{name: "expired TTL", mutate: func(p []byte) { p[8] = 1; repairChecksum(p) }},
 		{name: "wrong source", mutate: func(p []byte) { p[12] = 99; repairChecksum(p) }},
 		{name: "wrong destination", mutate: func(p []byte) { p[16] = 99; repairChecksum(p) }},
 		{name: "bad total", mutate: func(p []byte) { binary.BigEndian.PutUint16(p[2:4], 19); repairChecksum(p) }},
@@ -55,6 +56,19 @@ func TestAuthorizeIPv4RejectsInvalidPackets(t *testing.T) {
 				t.Fatal("invalid packet accepted")
 			}
 		})
+	}
+}
+
+func TestAuthorizeIPv4LeavesLowTTLForKernelRoutingSemantics(t *testing.T) {
+	p := validPacket()
+	p[8] = 1
+	repairChecksum(p)
+	want := append([]byte(nil), p...)
+	if total, err := AuthorizeIPv4(p, siteA, siteB); err != nil || total != len(p) {
+		t.Fatalf("valid low-TTL packet rejected before kernel routing: total=%d err=%v", total, err)
+	}
+	if !bytes.Equal(p, want) {
+		t.Fatal("low-TTL packet was mutated in userspace")
 	}
 }
 

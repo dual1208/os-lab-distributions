@@ -2,8 +2,13 @@
 Description=campus-link blind UDP relay and authenticated control plane
 After=network-online.target
 Wants=network-online.target
-StartLimitIntervalSec=60
-StartLimitBurst=10
+# A relay-restart transaction creates this root-only runtime marker before it
+# stops the relay.  All ordinary activation paths then fail their condition
+# until the actuator or its independent recovery action removes the marker.
+ConditionPathExists=!/run/campus-link-relay-fault/inhibit-start
+# Invalid or not-yet-installed rotated credentials must keep retrying without
+# a permanent start-limit lockout. RestartSec below prevents a busy loop.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -11,13 +16,18 @@ User=campus-link
 Group=campus-link
 ExecStart=/usr/local/bin/campus-link-relay -config /etc/campus-link/relay.json
 Restart=on-failure
-RestartSec=2
+RestartSec=10s
+TimeoutStartSec=15s
+TimeoutStopSec=15s
 MemoryHigh=48M
 MemoryMax=64M
 TasksMax=64
 LimitNOFILE=512
+LimitCORE=0
 RuntimeDirectory=campus-link
 RuntimeDirectoryMode=0750
+StateDirectory=campus-link-relay
+StateDirectoryMode=0700
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
@@ -33,6 +43,7 @@ ProtectSystem=strict
 RestrictAddressFamilies=AF_INET AF_INET6
 RestrictNamespaces=true
 RestrictRealtime=true
+LockPersonality=true
 SystemCallArchitectures=native
 UMask=0027
 

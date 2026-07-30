@@ -129,15 +129,17 @@ Lower endpoint A's MTU and compare a legal ping with an oversized
 don't-fragment probe:
 
 ```bash
-ip -n oslab-a link set ep-a mtu 1280
-ip netns exec oslab-a ping -c 2 -s 1200 -M do 10.82.0.10
+ip -n oslab-a link set ep-a mtu 1200
+ip netns exec oslab-a ping -c 2 -s 1100 -M do 10.82.0.10
 ip netns exec oslab-a ping -c 2 -s 1400 -M do 10.82.0.10 || true
 ip -n oslab-a link set ep-a mtu 1500
 ```
 
 The second probe should fail locally or report that the message is too long.
-Tunnels add headers, so their effective packet budget is smaller. Starting at
-1280 is conservative because it is also IPv6's minimum link MTU.
+Tunnels add headers, so their effective packet budget is smaller. Campus-link's
+current authenticated QUIC DATAGRAM profile fixes the inner route at 1200;
+forwarded TCP is MSS-clamped and DF-clear IPv4 fragments are individually
+validated across the tunnel.
 
 ## Lab 5: distinguish supervisor, control, and data planes
 

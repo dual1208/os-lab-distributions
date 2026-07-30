@@ -11,7 +11,9 @@ import (
 
 func validPlanMessage(now time.Time) control.RendezvousPlan {
 	return control.RendezvousPlan{
-		Type: "rendezvous-plan", Circuit: "campus", Generation: "ga", PeerGeneration: "gb",
+		Type: "rendezvous-plan", Circuit: "campus", Version: testVersion,
+		DeploymentID: testDeploymentID, RelayGeneration: testRelayGeneration,
+		Generation: "ga", PeerGeneration: "gb",
 		Session:  hex.EncodeToString([]byte("0123456789abcdef")),
 		ProbeKey: hex.EncodeToString([]byte("0123456789abcdef0123456789abcdef")),
 		Role:     "sender", Attempt: 1, PathEpoch: 3,
@@ -20,10 +22,17 @@ func validPlanMessage(now time.Time) control.RendezvousPlan {
 	}
 }
 
+func validPlanExpect(now time.Time) PlanExpect {
+	return PlanExpect{
+		Circuit: "campus", Version: testVersion, DeploymentID: testDeploymentID,
+		RelayGeneration: testRelayGeneration, Generation: "ga", MinPathEpoch: 2, Now: now,
+	}
+}
+
 func TestValidatePlan(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
 	message := validPlanMessage(now)
-	plan, err := ValidatePlan(message, PlanExpect{Circuit: "campus", Generation: "ga", MinPathEpoch: 2, Now: now})
+	plan, err := ValidatePlan(message, validPlanExpect(now))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,10 +49,14 @@ func TestValidatePlanRejectsUntrustedFields(t *testing.T) {
 	}{
 		{"wrong type", func(p *control.RendezvousPlan) { p.Type = "other" }},
 		{"wrong circuit", func(p *control.RendezvousPlan) { p.Circuit = "other" }},
+		{"wrong version", func(p *control.RendezvousPlan) { p.Version = "other" }},
+		{"wrong deployment", func(p *control.RendezvousPlan) { p.DeploymentID = "ffffffffffffffffffffffffffffffff" }},
+		{"noncanonical deployment", func(p *control.RendezvousPlan) { p.DeploymentID = "ABCDEF0123456789ABCDEF0123456789" }},
+		{"wrong relay generation", func(p *control.RendezvousPlan) { p.RelayGeneration = "11111111111111111111111111111111" }},
+		{"noncanonical relay generation", func(p *control.RendezvousPlan) { p.RelayGeneration = "ABCDEF0123456789ABCDEF0123456789" }},
 		{"wrong generation", func(p *control.RendezvousPlan) { p.Generation = "old" }},
 		{"same peer generation", func(p *control.RendezvousPlan) { p.PeerGeneration = p.Generation }},
 		{"stale epoch", func(p *control.RendezvousPlan) { p.PathEpoch = 2 }},
-		{"epoch jump", func(p *control.RendezvousPlan) { p.PathEpoch = 1027 }},
 		{"zero attempt", func(p *control.RendezvousPlan) { p.Attempt = 0 }},
 		{"excess attempts", func(p *control.RendezvousPlan) { p.Attempt = 65 }},
 		{"wrong role", func(p *control.RendezvousPlan) { p.Role = "both" }},
@@ -63,7 +76,7 @@ func TestValidatePlanRejectsUntrustedFields(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			message := validPlanMessage(now)
 			tt.mutate(&message)
-			_, err := ValidatePlan(message, PlanExpect{Circuit: "campus", Generation: "ga", MinPathEpoch: 2, Now: now})
+			_, err := ValidatePlan(message, validPlanExpect(now))
 			if !errors.Is(err, ErrInvalidPlan) {
 				t.Fatalf("unsafe plan returned %v", err)
 			}
@@ -75,7 +88,24 @@ func TestValidatePlanAllowsExplicitPrivateCandidate(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
 	message := validPlanMessage(now)
 	message.Candidates = []string{"10.0.0.1:443"}
-	if _, err := ValidatePlan(message, PlanExpect{Circuit: "campus", Generation: "ga", MinPathEpoch: 2, Now: now, AllowPrivate: true}); err != nil {
+	expect := validPlanExpect(now)
+	expect.AllowPrivate = true
+	if _, err := ValidatePlan(message, expect); err != nil {
 		t.Fatalf("explicit private policy rejected: %v", err)
+	}
+}
+
+func TestValidatePlanAllowsPersistedInitialEpochButBoundsLaterJumps(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	message := validPlanMessage(now)
+	message.PathEpoch = 50_000
+	expect := validPlanExpect(now)
+	expect.MinPathEpoch = 0
+	if _, err := ValidatePlan(message, expect); err != nil {
+		t.Fatalf("authenticated persisted initial epoch rejected: %v", err)
+	}
+	expect.MinPathEpoch = 3
+	if _, err := ValidatePlan(message, expect); !errors.Is(err, ErrInvalidPlan) {
+		t.Fatalf("unbounded later epoch jump returned %v", err)
 	}
 }

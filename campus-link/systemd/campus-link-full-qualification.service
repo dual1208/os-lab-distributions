@@ -1,0 +1,27 @@
+[Unit]
+Description=campus-link full transport qualification gate
+After=campus-link-external.target campus-link-edge-a.service campus-link-edge-b.service
+Wants=campus-link-edge-a.service campus-link-edge-b.service
+AssertPathExists=/run/campus-link/qualification-run.manifest
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/campus-link-qualify-a11-b22 /srv/openwrt-lab/repo full
+TimeoutStartSec=8h
+TimeoutStopSec=30
+KillMode=control-group
+OOMPolicy=stop
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1
+LimitCORE=0
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+ReadWritePaths=/run/campus-link /run/campus-link-install-edge.lock

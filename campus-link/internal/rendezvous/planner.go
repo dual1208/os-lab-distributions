@@ -1,10 +1,11 @@
 package rendezvous
 
 import (
-	"crypto/rand"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"io"
 	"net/netip"
 	"sync"
 	"time"
@@ -23,25 +24,35 @@ type planLeg struct {
 }
 
 type Planner struct {
-	mu      sync.Mutex
-	random  io.Reader
-	circuit string
-	legs    map[string]planLeg
-	plans   map[string]control.RendezvousPlan
-	epoch   uint64
-	pairKey string
+	mu              sync.Mutex
+	circuit         string
+	version         string
+	deploymentID    string
+	relayGeneration string
+	epochStore      EpochStore
+	legs            map[string]planLeg
+	plans           map[string]control.RendezvousPlan
+	lastEpoch       uint64
+	pairKey         string
 }
 
-func NewPlanner(random io.Reader, circuit string) *Planner {
-	if random == nil {
-		random = rand.Reader
+func NewPlanner(circuit, version string, epochStore EpochStore) (*Planner, error) {
+	if circuit == "" || !control.ValidSourceVersion(version) || epochStore == nil {
+		return nil, ErrEpochState
+	}
+	namespace := epochStore.Namespace()
+	if !control.ValidDeploymentID(namespace.DeploymentID) || !control.ValidRelayGeneration(namespace.RelayGeneration) {
+		return nil, ErrEpochState
 	}
 	return &Planner{
-		random:  random,
-		circuit: circuit,
-		legs:    map[string]planLeg{"site-a": {}, "site-b": {}},
-		plans:   make(map[string]control.RendezvousPlan),
-	}
+		circuit: circuit, version: version, deploymentID: namespace.DeploymentID,
+		relayGeneration: namespace.RelayGeneration, epochStore: epochStore,
+		legs: map[string]planLeg{"site-a": {}, "site-b": {}}, plans: make(map[string]control.RendezvousPlan),
+	}, nil
+}
+
+func (p *Planner) Namespace() EpochNamespace {
+	return EpochNamespace{DeploymentID: p.deploymentID, RelayGeneration: p.relayGeneration}
 }
 
 // Register establishes the only control-session owner allowed to publish a
@@ -78,18 +89,55 @@ func (p *Planner) Observe(site string, owner uint64, candidate netip.AddrPort, n
 	}
 	leg.candidate = candidate
 	p.legs[site] = leg
+	// A candidate change invalidates the old pair before randomness or plan
+	// construction can fail. PlanFor must never advertise a stale endpoint.
+	p.invalidatePlansLocked()
 	return p.maybePlanLocked(now)
 }
 
-func (p *Planner) PlanFor(site string, owner uint64) (control.RendezvousPlan, bool) {
+// Withdraw removes one current owner's observed candidate without replacing
+// its authenticated control ownership. It is used when a newly proven relay
+// tuple is not eligible for direct-path advertisement.
+func (p *Planner) Withdraw(site string, owner uint64) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if !validSite(site) || p.legs[site].owner != owner {
+		return false
+	}
+	leg := p.legs[site]
+	leg.candidate = netip.AddrPort{}
+	p.legs[site] = leg
+	p.invalidatePlansLocked()
+	return true
+}
+
+func (p *Planner) PlanFor(site string, owner uint64) (control.RendezvousPlan, bool) {
+	return p.PlanForAt(site, owner, time.Now())
+}
+
+// PlanForAt returns only a current plan. Once a pair expires it is erased and,
+// while both authenticated owners still have candidates, replaced with fresh
+// session/key material and a higher path epoch.
+func (p *Planner) PlanForAt(site string, owner uint64, now time.Time) (control.RendezvousPlan, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !validSite(site) || p.legs[site].owner != owner || now.IsZero() {
 		return control.RendezvousPlan{}, false
 	}
 	plan, ok := p.plans[site]
+	if ok && now.Unix() >= plan.ExpiresUnix {
+		p.invalidatePlansLocked()
+		plan = control.RendezvousPlan{}
+		ok = false
+	}
 	if !ok {
-		return control.RendezvousPlan{}, false
+		if err := p.maybePlanLocked(now); err != nil {
+			return control.RendezvousPlan{}, false
+		}
+		plan, ok = p.plans[site]
+		if !ok {
+			return control.RendezvousPlan{}, false
+		}
 	}
 	plan.Candidates = append([]string(nil), plan.Candidates...)
 	return plan, true
@@ -115,34 +163,66 @@ func (p *Planner) maybePlanLocked(now time.Time) error {
 	if pairKey == p.pairKey && len(p.plans) == 2 {
 		return nil
 	}
-	session := make([]byte, 16)
-	key := make([]byte, 32)
-	if _, err := io.ReadFull(p.random, session); err != nil {
+	reservation, err := p.epochStore.ReserveEpoch()
+	if err != nil {
 		return err
 	}
-	if _, err := io.ReadFull(p.random, key); err != nil {
-		return err
+	if reservation.Epoch == 0 || reservation.Epoch <= p.lastEpoch || reservation.MaterialSeed == ([32]byte{}) {
+		return ErrEpochState
 	}
-	p.epoch++
+	session, key := derivePlanMaterial(reservation, p.circuit, p.version, p.deploymentID, p.relayGeneration)
+	if session == ([16]byte{}) || key == ([32]byte{}) {
+		return ErrNamespaceEntropy
+	}
 	start := now.Add(time.Second).Unix()
 	expires := now.Add(planLifetime).Unix()
-	sessionHex, keyHex := hex.EncodeToString(session), hex.EncodeToString(key)
+	sessionHex, keyHex := hex.EncodeToString(session[:]), hex.EncodeToString(key[:])
 	p.plans = map[string]control.RendezvousPlan{
 		"site-a": {
-			Type: "rendezvous-plan", Circuit: p.circuit, Generation: a.generation, PeerGeneration: b.generation,
+			Type: "rendezvous-plan", Circuit: p.circuit, Version: p.version,
+			DeploymentID: p.deploymentID, RelayGeneration: p.relayGeneration,
+			Generation: a.generation, PeerGeneration: b.generation,
 			Session: sessionHex, ProbeKey: keyHex, Role: "sender", Attempt: 1,
-			PathEpoch: p.epoch, StartUnix: start, ExpiresUnix: expires,
+			PathEpoch: reservation.Epoch, StartUnix: start, ExpiresUnix: expires,
 			Candidates: []string{b.candidate.String()},
 		},
 		"site-b": {
-			Type: "rendezvous-plan", Circuit: p.circuit, Generation: b.generation, PeerGeneration: a.generation,
+			Type: "rendezvous-plan", Circuit: p.circuit, Version: p.version,
+			DeploymentID: p.deploymentID, RelayGeneration: p.relayGeneration,
+			Generation: b.generation, PeerGeneration: a.generation,
 			Session: sessionHex, ProbeKey: keyHex, Role: "receiver", Attempt: 1,
-			PathEpoch: p.epoch, StartUnix: start, ExpiresUnix: expires,
+			PathEpoch: reservation.Epoch, StartUnix: start, ExpiresUnix: expires,
 			Candidates: []string{a.candidate.String()},
 		},
 	}
+	p.lastEpoch = reservation.Epoch
 	p.pairKey = pairKey
 	return nil
+}
+
+func derivePlanMaterial(reservation EpochReservation, circuit, version, deploymentID, relayGeneration string) ([16]byte, [32]byte) {
+	context := make([]byte, 8)
+	binary.BigEndian.PutUint64(context, reservation.Epoch)
+	for _, value := range []string{circuit, version, deploymentID, relayGeneration} {
+		var length [8]byte
+		binary.BigEndian.PutUint64(length[:], uint64(len(value)))
+		context = append(context, length[:]...)
+		context = append(context, value...)
+	}
+
+	sessionMAC := hmac.New(sha256.New, reservation.MaterialSeed[:])
+	_, _ = sessionMAC.Write([]byte("campus-link/rendezvous/session/v2\x00"))
+	_, _ = sessionMAC.Write(context)
+	sessionDigest := sessionMAC.Sum(nil)
+	var session [16]byte
+	copy(session[:], sessionDigest[:len(session)])
+
+	keyMAC := hmac.New(sha256.New, reservation.MaterialSeed[:])
+	_, _ = keyMAC.Write([]byte("campus-link/rendezvous/probe-key/v2\x00"))
+	_, _ = keyMAC.Write(context)
+	var key [32]byte
+	copy(key[:], keyMAC.Sum(nil))
+	return session, key
 }
 
 func (p *Planner) invalidatePlansLocked() {

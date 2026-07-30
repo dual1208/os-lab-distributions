@@ -18,6 +18,9 @@ func TestProbeRoundTripAndAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(packet) != ProbeSize || packet[0]&0xc0 != 0 {
+		t.Fatalf("probe discriminator is not non-QUIC: size=%d first=%#x", len(packet), packet[0])
+	}
 	got, err := Parse(packet, key, Expect{Circuit: "campus", Session: session, Site: 1, Now: now})
 	if err != nil {
 		t.Fatal(err)

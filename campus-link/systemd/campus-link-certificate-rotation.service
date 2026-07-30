@@ -1,0 +1,38 @@
+[Unit]
+Description=campus-link bounded certificate rotation and expiry qualification gate
+After=campus-link-fault-in-stream.service campus-link-edge-a.service campus-link-edge-b.service
+Wants=campus-link-edge-a.service campus-link-edge-b.service
+AssertPathExists=/run/campus-link/qualification-run.manifest
+AssertPathExists=/run/campus-link/fault-in-stream.result
+AssertPathExists=/var/lib/campus-link/rotation/manifest.json
+AssertPathExists=/usr/local/libexec/campus-link-certificate-rotation-driver
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/campus-link-certificate-rotation /srv/openwrt-lab/repo production
+TimeoutStartSec=35m
+TimeoutStopSec=150s
+KillMode=control-group
+OOMPolicy=stop
+MemoryMax=256M
+TasksMax=128
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1
+LimitCORE=0
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+ReadWritePaths=/run/campus-link /run/campus-link-install-edge.lock /etc/campus-link /var/lib/campus-link/rotation

@@ -8,6 +8,24 @@ users:
     gecos: OpenWrt build user
     shell: /bin/bash
     lock_passwd: true
+  - name: campus-link-a
+    gecos: campus-link site-a edge
+    system: true
+    primary_group: campus-link-a
+    groups: []
+    homedir: /nonexistent
+    no_create_home: true
+    shell: /usr/sbin/nologin
+    lock_passwd: true
+  - name: campus-link-b
+    gecos: campus-link site-b edge
+    system: true
+    primary_group: campus-link-b
+    groups: []
+    homedir: /nonexistent
+    no_create_home: true
+    shell: /usr/sbin/nologin
+    lock_passwd: true
 
 packages:
   - build-essential
@@ -71,6 +89,7 @@ runcmd:
   - [usermod, -aG, kvm, builder]
   - [ufw, default, deny, incoming]
   - [ufw, default, allow, outgoing]
+  - [ufw, default, deny, routed]
   - [ufw, allow, OpenSSH]
   - [ufw, --force, enable]
   - [systemctl, daemon-reload]

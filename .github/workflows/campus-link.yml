@@ -40,3 +40,9 @@ jobs:
       - name: A11/B22 protocol tests
         working-directory: campus-link
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Shell contract tests
+        working-directory: campus-link
+        run: |
+          for test in tests/test_*.sh; do
+            bash "${test}"
+          done

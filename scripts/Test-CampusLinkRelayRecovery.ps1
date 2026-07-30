@@ -30,7 +30,7 @@ for ($trial = 1; $trial -le $trials; $trial++) {
         if ($candidate) { $line = $candidate; break }
         Start-Sleep -Seconds 1
     }
-    if ($line -notmatch '^recovery_ms=(\d+) route_withdrawn=1$') {
+    if ($line -notmatch '^recovery_ms=(\d+) route_withdrawn=0 traffic_interruptions=0 direct_preserved=1 relay_data_delta=0 control_recovered=1$') {
         throw "Relay recovery trial $trial failed: $line"
     }
     $duration = [int]$Matches[1]

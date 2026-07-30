@@ -14,33 +14,44 @@ const planClockSkew = 5 * time.Second
 var ErrInvalidPlan = errors.New("invalid rendezvous plan")
 
 type Plan struct {
-	Circuit        string
-	Generation     string
-	PeerGeneration string
-	Session        [16]byte
-	ProbeKey       [32]byte
-	Role           Role
-	Attempt        uint32
-	PathEpoch      uint64
-	Start          time.Time
-	Expires        time.Time
-	Candidates     []netip.AddrPort
+	Circuit         string
+	Version         string
+	DeploymentID    string
+	RelayGeneration string
+	Generation      string
+	PeerGeneration  string
+	Session         [16]byte
+	ProbeKey        [32]byte
+	Role            Role
+	Attempt         uint32
+	PathEpoch       uint64
+	Start           time.Time
+	Expires         time.Time
+	Candidates      []netip.AddrPort
 }
 
 type PlanExpect struct {
-	Circuit      string
-	Generation   string
-	MinPathEpoch uint64
-	Now          time.Time
-	AllowPrivate bool
+	Circuit         string
+	Version         string
+	DeploymentID    string
+	RelayGeneration string
+	Generation      string
+	MinPathEpoch    uint64
+	AllowMinEpoch   bool
+	Now             time.Time
+	AllowPrivate    bool
 }
 
 func ValidatePlan(message control.RendezvousPlan, expect PlanExpect) (Plan, error) {
 	var plan Plan
 	if message.Type != "rendezvous-plan" || message.Circuit == "" || message.Circuit != expect.Circuit ||
+		!control.ValidSourceVersion(expect.Version) || message.Version != expect.Version ||
+		!control.ValidDeploymentID(expect.DeploymentID) || message.DeploymentID != expect.DeploymentID ||
+		!control.ValidRelayGeneration(expect.RelayGeneration) || message.RelayGeneration != expect.RelayGeneration ||
 		message.Generation == "" || message.Generation != expect.Generation || message.PeerGeneration == "" ||
-		message.PeerGeneration == message.Generation || message.PathEpoch <= expect.MinPathEpoch ||
-		message.PathEpoch-expect.MinPathEpoch > 1024 ||
+		message.PeerGeneration == message.Generation || message.PathEpoch == 0 || message.PathEpoch < expect.MinPathEpoch ||
+		(message.PathEpoch == expect.MinPathEpoch && !expect.AllowMinEpoch) ||
+		(expect.MinPathEpoch != 0 && message.PathEpoch-expect.MinPathEpoch > 1024) ||
 		message.Attempt == 0 || message.Attempt > 64 {
 		return plan, ErrInvalidPlan
 	}
@@ -80,6 +91,9 @@ func ValidatePlan(message control.RendezvousPlan, expect PlanExpect) (Plan, erro
 		return Plan{}, ErrInvalidPlan
 	}
 	plan.Circuit = message.Circuit
+	plan.Version = message.Version
+	plan.DeploymentID = message.DeploymentID
+	plan.RelayGeneration = message.RelayGeneration
 	plan.Generation = message.Generation
 	plan.PeerGeneration = message.PeerGeneration
 	plan.Attempt = message.Attempt

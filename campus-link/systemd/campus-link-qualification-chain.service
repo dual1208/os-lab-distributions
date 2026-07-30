@@ -1,0 +1,25 @@
+[Unit]
+Description=campus-link ordered production qualification chain
+After=campus-link-external.target campus-link-edge-a.service campus-link-edge-b.service
+Wants=campus-link-edge-a.service campus-link-edge-b.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/campus-link-qualification-chain
+TimeoutStartSec=11d
+TimeoutStopSec=30
+KillMode=control-group
+OOMPolicy=stop
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+ReadWritePaths=/run

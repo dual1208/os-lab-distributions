@@ -15,12 +15,24 @@ var version = "dev"
 
 func main() {
 	path := flag.String("config", "/etc/campus-link/relay.json", "relay configuration")
+	checkConfig := flag.Bool("check-config", false, "validate configuration and credentials without starting")
 	flag.Parse()
 	var cfg config.Relay
 	if err := config.Load(*path, &cfg); err != nil {
 		log.Fatal(err)
 	}
-	srv, err := relay.New(cfg)
+	if *checkConfig {
+		srv, err := relay.NewForPreflight(cfg, version)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := srv.ValidateConfig(); err != nil {
+			log.Fatal(err)
+		}
+		log.Print("configuration and credentials valid")
+		return
+	}
+	srv, err := relay.New(cfg, version)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -8,6 +8,14 @@ router_info
 # credentials.  Sanitized evidence belongs under docs/verification instead.
 .state/
 *.secret
+*.key
+*.pem
+*.p12
+*.pfx
+id_ed25519
+id_ecdsa
+id_rsa
+ssh_host_*_key
 cloud-init.rendered.yaml
 
 # Retrieved reference payloads stay local; only their manifest is versioned.

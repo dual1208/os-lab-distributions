@@ -1,6 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+readonly MODE=${1:-plaintext}
+[[ ${MODE} == plaintext || ${MODE} == router-only ]]
+
+if [[ ${MODE} == router-only ]]; then
+  for _ in {1..30}; do
+    if ip netns exec oslab-a ping -c1 -W1 10.81.0.1 >/dev/null 2>&1 &&
+       ip netns exec oslab-b ping -c1 -W1 10.82.0.1 >/dev/null 2>&1; then
+      break
+    fi
+    sleep 2
+  done
+  ip netns exec oslab-a ping -c2 -W2 10.81.0.1
+  ip netns exec oslab-b ping -c2 -W2 10.82.0.1
+  ! ip netns exec oslab-a ping -c1 -W1 10.82.0.10 >/dev/null 2>&1
+  ! ip netns list | awk '{print $1}' | grep -qx oslab-relay
+  ! ip link show br-relay-a >/dev/null 2>&1
+  ! ip link show br-relay-b >/dev/null 2>&1
+  curl --fail --silent --show-error --insecure --max-time 5 https://127.0.0.1:18443/ >/dev/null
+  cat > /run/openwrt-lab/smoke.status <<EOF
+STATUS=pass
+MODE=router-only
+LOCAL=icmp
+CROSS_SITE=absent
+LUCI=https://127.0.0.1:18443/
+EOF
+  exit 0
+fi
+
 for _ in {1..30}; do
   if ip netns exec oslab-a ping -c1 -W1 10.82.0.10 >/dev/null 2>&1; then
     break
@@ -28,8 +56,8 @@ fi
 
 cat > /run/openwrt-lab/smoke.status <<EOF
 STATUS=pass
+MODE=plaintext
 ALLOWED=icmp,tcp/8080
 BLOCKED=tcp/12345
 LUCI=https://127.0.0.1:18443/
 EOF
-

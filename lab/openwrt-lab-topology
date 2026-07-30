@@ -14,6 +14,8 @@ down() {
 }
 
 up() {
+  local mode=${1:-plaintext}
+  [[ ${mode} == plaintext || ${mode} == router-only ]]
   down
   for bridge in br-a-lan br-b-lan br-a-transit br-b-transit; do
     ip link add "$bridge" type bridge
@@ -50,27 +52,33 @@ up() {
   ip -n oslab-b address add 10.82.0.22/24 dev ep-b
   ip -n oslab-b route add default via 10.82.0.1
 
-  ip netns add oslab-relay
-  ip link add relay-a type veth peer name br-relay-a
-  ip link set relay-a netns oslab-relay
-  ip link set br-relay-a master br-a-transit
-  ip link set br-relay-a up
-  ip link add relay-b type veth peer name br-relay-b
-  ip link set relay-b netns oslab-relay
-  ip link set br-relay-b master br-b-transit
-  ip link set br-relay-b up
-  ip -n oslab-relay link set lo up
-  ip -n oslab-relay link set relay-a up
-  ip -n oslab-relay link set relay-b up
-  ip -n oslab-relay address add 172.31.1.2/30 dev relay-a
-  ip -n oslab-relay address add 172.31.2.2/30 dev relay-b
-  ip netns exec oslab-relay sysctl -q -w net.ipv4.ip_forward=1
-  ip -n oslab-relay route add 10.81.0.0/24 via 172.31.1.1
-  ip -n oslab-relay route add 10.82.0.0/24 via 172.31.2.1
+  if [[ ${mode} == plaintext ]]; then
+    ip netns add oslab-relay
+    ip link add relay-a type veth peer name br-relay-a
+    ip link set relay-a netns oslab-relay
+    ip link set br-relay-a master br-a-transit
+    ip link set br-relay-a up
+    ip link add relay-b type veth peer name br-relay-b
+    ip link set relay-b netns oslab-relay
+    ip link set br-relay-b master br-b-transit
+    ip link set br-relay-b up
+    ip -n oslab-relay link set lo up
+    ip -n oslab-relay link set relay-a up
+    ip -n oslab-relay link set relay-b up
+    ip -n oslab-relay address add 172.31.1.2/30 dev relay-a
+    ip -n oslab-relay address add 172.31.2.2/30 dev relay-b
+    ip netns exec oslab-relay sysctl -q -w net.ipv4.ip_forward=1
+    ip -n oslab-relay route add 10.81.0.0/24 via 172.31.1.1
+    ip -n oslab-relay route add 10.82.0.0/24 via 172.31.2.1
+  else
+    ! ip netns list | awk '{print $1}' | grep -qx oslab-relay
+    ! ip link show br-relay-a >/dev/null 2>&1
+    ! ip link show br-relay-b >/dev/null 2>&1
+  fi
 }
 
 case ${1:-} in
-  up) up ;;
+  up) up "${2:-plaintext}" ;;
   down) down ;;
   *) echo 'usage: openwrt-lab-topology up|down' >&2; exit 2 ;;
 esac

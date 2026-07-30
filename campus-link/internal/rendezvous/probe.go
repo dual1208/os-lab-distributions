@@ -8,10 +8,14 @@ import (
 	"net/netip"
 	"sync"
 	"time"
+
+	"github.com/dual1208/os-lab-distributions/campus-link/internal/control"
 )
 
 const (
-	probeMagic       = "CLPUNCH2"
+	// The top two bits must remain zero. quic.Transport is the sole UDP
+	// socket reader and routes this discriminator to ReadNonQUICPacket.
+	probeMagic       = "\x03LPUNCH2"
 	ProbeSize        = 104
 	MaxCandidates    = 16
 	MaxSessionTTL    = 60 * time.Second
@@ -25,15 +29,24 @@ const (
 	RoleReceiver Role = 2
 )
 
+type ProbeKind byte
+
+const (
+	ProbeRequest ProbeKind = iota
+	ProbeResponse
+	ProbeConfirm
+	ProbeConfirmed
+)
+
 type Probe struct {
-	Circuit  string
-	Session  [16]byte
-	Nonce    [16]byte
-	Site     byte
-	Role     Role
-	Response bool
-	Expires  time.Time
-	Attempt  uint32
+	Circuit string
+	Session [16]byte
+	Nonce   [16]byte
+	Site    byte
+	Role    Role
+	Kind    ProbeKind
+	Expires time.Time
+	Attempt uint32
 }
 
 type Expect struct {
@@ -51,8 +64,14 @@ var (
 	ErrInvalidCandidate = errors.New("invalid rendezvous candidate")
 )
 
+// IsProtocol recognizes only the exact public rendezvous wire discriminator.
+// Authentication and scope checks remain the responsibility of Parse.
+func IsProtocol(packet []byte) bool {
+	return len(packet) == ProbeSize && string(packet[:8]) == probeMagic && packet[8] == 2
+}
+
 func (p Probe) Marshal(key []byte) ([]byte, error) {
-	if len(key) != 32 || p.Circuit == "" || p.Site == 0 || !validRole(p.Role) ||
+	if len(key) != 32 || p.Circuit == "" || p.Site == 0 || !validRole(p.Role) || p.Kind > ProbeConfirmed ||
 		p.Expires.IsZero() || p.Session == ([16]byte{}) || p.Nonce == ([16]byte{}) {
 		return nil, ErrInvalidProbe
 	}
@@ -61,9 +80,7 @@ func (p Probe) Marshal(key []byte) ([]byte, error) {
 	b[8] = 2
 	b[9] = p.Site
 	b[10] = byte(p.Role)
-	if p.Response {
-		b[11] = 1
-	}
+	b[11] = byte(p.Kind)
 	binary.BigEndian.PutUint64(b[12:20], uint64(p.Expires.Unix()))
 	binary.BigEndian.PutUint32(b[20:24], p.Attempt)
 	copy(b[24:40], p.Session[:])
@@ -77,7 +94,7 @@ func (p Probe) Marshal(key []byte) ([]byte, error) {
 func Parse(packet, key []byte, expect Expect) (Probe, error) {
 	var p Probe
 	if len(packet) != ProbeSize || len(key) != 32 || string(packet[:8]) != probeMagic ||
-		packet[8] != 2 || packet[9] == 0 || !validRole(Role(packet[10])) || packet[11] > 1 {
+		packet[8] != 2 || packet[9] == 0 || !validRole(Role(packet[10])) || packet[11] > byte(ProbeConfirmed) {
 		return p, ErrInvalidProbe
 	}
 	if !hmac.Equal(packet[72:], sign(key, packet[:72])) {
@@ -85,7 +102,7 @@ func Parse(packet, key []byte, expect Expect) (Probe, error) {
 	}
 	p.Site = packet[9]
 	p.Role = Role(packet[10])
-	p.Response = packet[11] == 1
+	p.Kind = ProbeKind(packet[11])
 	p.Expires = time.Unix(int64(binary.BigEndian.Uint64(packet[12:20])), 0)
 	p.Attempt = binary.BigEndian.Uint32(packet[20:24])
 	copy(p.Session[:], packet[24:40])
@@ -141,7 +158,7 @@ func ValidateCandidates(values []string, allowPrivate bool) ([]netip.AddrPort, e
 
 type ReplayCache struct {
 	mu      sync.Mutex
-	entries map[[16]byte]time.Time
+	entries map[[32]byte]time.Time
 	max     int
 }
 
@@ -149,12 +166,46 @@ func NewReplayCache(max int) *ReplayCache {
 	if max <= 0 {
 		max = defaultReplayMax
 	}
-	return &ReplayCache{entries: make(map[[16]byte]time.Time), max: max}
+	return &ReplayCache{entries: make(map[[32]byte]time.Time), max: max}
 }
 
 // Accept returns false for a duplicate nonce or when the bounded cache cannot
 // safely remember another unexpired nonce.
 func (r *ReplayCache) Accept(nonce [16]byte, expires, now time.Time) bool {
+	return r.accept(sha256.Sum256(nonce[:]), nonce, expires, now)
+}
+
+// AcceptCandidate scopes a peer nonce to the authenticated plan attempt and
+// observed source tuple. Endpoint-dependent NAT may legitimately expose the
+// same peer nonce through more than one candidate, while replay on the same
+// candidate remains forbidden.
+func (r *ReplayCache) AcceptCandidate(circuit, version, deploymentID, relayGeneration string, session [16]byte, attempt uint32, source netip.AddrPort, nonce [16]byte, expires, now time.Time) bool {
+	if circuit == "" || !control.ValidSourceVersion(version) || !control.ValidDeploymentID(deploymentID) || !control.ValidRelayGeneration(relayGeneration) ||
+		session == ([16]byte{}) || attempt == 0 || !source.IsValid() {
+		return false
+	}
+	h := sha256.New()
+	h.Write([]byte("campus-link/probe-replay/2"))
+	for _, value := range []string{circuit, version, deploymentID, relayGeneration} {
+		var length [4]byte
+		binary.BigEndian.PutUint32(length[:], uint32(len(value)))
+		h.Write(length[:])
+		h.Write([]byte(value))
+	}
+	h.Write(session[:])
+	var numeric [6]byte
+	binary.BigEndian.PutUint32(numeric[:4], attempt)
+	binary.BigEndian.PutUint16(numeric[4:], source.Port())
+	h.Write(numeric[:])
+	address := source.Addr().Unmap().As16()
+	h.Write(address[:])
+	h.Write(nonce[:])
+	var scope [32]byte
+	copy(scope[:], h.Sum(nil))
+	return r.accept(scope, nonce, expires, now)
+}
+
+func (r *ReplayCache) accept(scope [32]byte, nonce [16]byte, expires, now time.Time) bool {
 	if nonce == ([16]byte{}) || !expires.After(now) || expires.After(now.Add(MaxSessionTTL)) {
 		return false
 	}
@@ -165,10 +216,10 @@ func (r *ReplayCache) Accept(nonce [16]byte, expires, now time.Time) bool {
 			delete(r.entries, existing)
 		}
 	}
-	if _, exists := r.entries[nonce]; exists || len(r.entries) >= r.max {
+	if _, exists := r.entries[scope]; exists || len(r.entries) >= r.max {
 		return false
 	}
-	r.entries[nonce] = expires
+	r.entries[scope] = expires
 	return true
 }
 

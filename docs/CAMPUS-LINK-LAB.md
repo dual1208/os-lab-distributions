@@ -35,8 +35,9 @@ it. Runtime addresses, IDs, certificates, and keys remain ignored.
 
 - site A LAN: `10.81.0.0/24`; site B LAN: `10.82.0.0/24`;
 - fixed edge policy admits only those two source/destination prefixes;
-- the TUN MTU is 1280 and every forwarded IPv4 packet has TTL decremented with
-  its header checksum updated;
+- the TUN and remote-route MTU are 1200, forwarded TCP SYN packets are MSS
+  clamped to that PMTU, and authenticated kernel IPv4 fragments are carried
+  without a second userspace TTL decrement;
 - router B still allows ICMP and TCP/8080 but blocks TCP/12345;
 - LuCI remains loopback-only at `https://127.0.0.1:8443/` through the documented
   SSH local forward;
@@ -50,8 +51,8 @@ On the router-lab host, check supervisor state and sanitized edge status:
 ```bash
 systemctl status campus-link-external.target --no-pager
 systemctl status campus-link-edge-a.service campus-link-edge-b.service --no-pager
-campus-linkctl -status /run/campus-link/site-a.json
-campus-linkctl -status /run/campus-link/site-b.json
+campus-linkctl -status /run/campus-link/site-a/status.json
+campus-linkctl -status /run/campus-link/site-b/status.json
 ip -n campus-a route get 10.82.0.10
 ip -n campus-b route get 10.81.0.10
 ```

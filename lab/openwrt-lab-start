@@ -5,6 +5,14 @@ readonly LAB_ROOT=/srv/openwrt-lab/runtime
 readonly ARTIFACT_ROOT=/srv/openwrt-lab/artifacts/x86-lab
 readonly SECRET=/etc/openwrt-lab/admin.secret
 readonly IMAGE_GLOB='openwrt*x86-64-generic-ext4-combined.img.gz'
+readonly CAMPUS_MODE_MARKER=/var/lib/campus-link/router-only.enabled
+transit_mode=plaintext
+if [[ -e ${CAMPUS_MODE_MARKER} || -L ${CAMPUS_MODE_MARKER} ]]; then
+  [[ -f ${CAMPUS_MODE_MARKER} && ! -L ${CAMPUS_MODE_MARKER} ]]
+  [[ $(stat -c '%u:%g:%a' -- "${CAMPUS_MODE_MARKER}") == 0:0:600 ]]
+  transit_mode=router-only
+fi
+readonly transit_mode
 
 install -d -m 0755 "${LAB_ROOT}" /run/openwrt-lab
 rm -f /run/openwrt-lab/smoke.status
@@ -27,7 +35,7 @@ done
 chown -R builder:builder "${LAB_ROOT}"
 chown builder:builder /run/openwrt-lab
 
-/usr/local/libexec/openwrt-lab-topology up
+/usr/local/libexec/openwrt-lab-topology up "${transit_mode}"
 
 qemu-system-x86_64 -name router-a -enable-kvm -cpu host -m 512 -smp 2 \
   -runas builder -daemonize -pidfile /run/openwrt-lab/router-a.pid \
@@ -54,4 +62,4 @@ qemu-system-x86_64 -name router-b -enable-kvm -cpu host -m 512 -smp 2 \
   -device virtio-net-pci,netdev=transit,mac=02:00:00:00:b2:01
 
 /usr/local/libexec/openwrt-lab-console-config
-/usr/local/libexec/openwrt-lab-smoke
+/usr/local/libexec/openwrt-lab-smoke "${transit_mode}"
